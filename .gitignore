@@ -1,0 +1,5 @@
+/build*/
+.vscode/
+.vs/
+CMakeLists.txt.user*
+*.orig
