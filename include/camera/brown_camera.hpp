@@ -88,6 +88,24 @@ public:
             (*d_proj_d_p3d)(1, 2) = (d_my_d_x * d_x_d_zw + d_my_d_y * d_y_d_zw) * fy;
         }
 
+        if (d_proj_d_param) {
+            (*d_proj_d_param).setZero();
+            (*d_proj_d_param)(0, 0) = mx;
+            (*d_proj_d_param)(0, 2) = Scalar(1);
+            (*d_proj_d_param)(1, 1) = my;
+            (*d_proj_d_param)(1, 3) = Scalar(1);
+
+            (*d_proj_d_param)(0, 4) = fx * x * r2;
+            (*d_proj_d_param)(1, 4) = fy * y * r2;
+            d_proj_d_param->col(5) = d_proj_d_param->col(4) * r2;
+            d_proj_d_param->col(6) = d_proj_d_param->col(5) * r2;
+
+            (*d_proj_d_param)(0, 7) = fx * 2 * x * y;
+            (*d_proj_d_param)(0, 8) = fx * (r2 + 2 * x * x);
+            (*d_proj_d_param)(1, 7) = fy * (r2 + 2 * y * y);
+            (*d_proj_d_param)(1, 8) = fy * 2 * x * y;
+        }
+
         return p3d[2] > Eigen::NumTraits<Scalar>::dummy_precision();
     }
 
@@ -114,6 +132,8 @@ public:
     {
         return param_;
     }
+
+    void operator+=(const VecN& vec) { param_ += vec; }
 
 private:
     VecN param_;

@@ -57,6 +57,7 @@ void testProjectJacobian()
     auto cams = CamT::getTestProjections();
     using Vec2 = typename CamT::Vec2;
     using Vec3 = typename CamT::Vec3;
+    using VecN = typename CamT::VecN;
     using Mat23 = typename CamT::Mat23;
     using Mat2N = typename CamT::Mat2N;
 
@@ -69,16 +70,27 @@ void testProjectJacobian()
     for (const auto& cam : cams) {
         for (const auto& pt3d : pts3d) {
             Vec2 pt2d;
-            Mat23 J_p;
-            bool success = cam.project(pt3d, pt2d, &J_p);
+            Mat23 J_pt;
+            Mat2N J_param;
+            bool success = cam.project(pt3d, pt2d, &J_pt, &J_param);
             if (success) {
                 test_jacobian(
-                    "d_r_d_p", J_p, [&](const Vec3& x) {
+                    "J_pt", J_pt, [&](const Vec3& x) {
                         Vec2 res;
                         cam.project(pt3d + x, res);
                         return res;
                     },
                     Vec3::Zero());
+
+                test_jacobian(
+                    "J_param", J_param, [&](const VecN& p) {
+                        auto tmp = cam;
+                        tmp += p;
+                        Vec2 res;
+                        tmp.project(pt3d, res);
+                        return res;
+                    },
+                    VecN::Zero());
             }
         }
     }
@@ -94,7 +106,12 @@ TEST(Camera, BrownProjectUnprojectDouble)
     testProjectUnproject<bxg::BrownCamera<double>>();
 }
 
-TEST(Camera, BrownProjectJacobian)
+TEST(Camera, BrownProjectJacobianFloat)
+{
+    testProjectJacobian<bxg::BrownCamera<float>>();
+}
+
+TEST(Camera, BrownProjectJacobianDouble)
 {
     testProjectJacobian<bxg::BrownCamera<double>>();
 }
