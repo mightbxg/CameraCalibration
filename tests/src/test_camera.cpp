@@ -79,7 +79,6 @@ void testProjectJacobian()
                         return res;
                     },
                     Vec3::Zero());
-                break; //FIXME
             }
         }
     }
