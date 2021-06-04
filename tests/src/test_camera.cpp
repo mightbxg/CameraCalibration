@@ -1,4 +1,5 @@
 #include "camera/brown_camera.hpp"
+#include "test_utils.hpp"
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <vector>
@@ -50,6 +51,40 @@ void testProjectUnproject()
     }
 }
 
+template <typename CamT>
+void testProjectJacobian()
+{
+    auto cams = CamT::getTestProjections();
+    using Vec2 = typename CamT::Vec2;
+    using Vec3 = typename CamT::Vec3;
+    using Mat23 = typename CamT::Mat23;
+    using Mat2N = typename CamT::Mat2N;
+
+    std::vector<Vec3> pts3d;
+    for (int x = -10; x <= 10; ++x)
+        for (int y = -10; y <= 10; ++y)
+            for (int z = 0; z < 5; ++z)
+                pts3d.emplace_back(x, y, z);
+
+    for (const auto& cam : cams) {
+        for (const auto& pt3d : pts3d) {
+            Vec2 pt2d;
+            Mat23 J_p;
+            bool success = cam.project(pt3d, pt2d, &J_p);
+            if (success) {
+                test_jacobian(
+                    "d_r_d_p", J_p, [&](const Vec3& x) {
+                        Vec2 res;
+                        cam.project(pt3d + x, res);
+                        return res;
+                    },
+                    Vec3::Zero());
+                break; //FIXME
+            }
+        }
+    }
+}
+
 TEST(Camera, BrownProjectUnprojectFloat)
 {
     testProjectUnproject<bxg::BrownCamera<float>>();
@@ -58,6 +93,11 @@ TEST(Camera, BrownProjectUnprojectFloat)
 TEST(Camera, BrownProjectUnprojectDouble)
 {
     testProjectUnproject<bxg::BrownCamera<double>>();
+}
+
+TEST(Camera, BrownProjectJacobian)
+{
+    testProjectJacobian<bxg::BrownCamera<double>>();
 }
 
 }

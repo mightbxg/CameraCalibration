@@ -2,6 +2,7 @@ if(NOT TARGET gtest_main)
     add_subdirectory(googletest EXCLUDE_FROM_ALL)
 endif()
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 link_libraries(CameraCalibrator gtest gtest_main)
 
 add_executable(test_camera src/test_camera.cpp)

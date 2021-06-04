@@ -46,9 +46,10 @@ public:
         const Scalar k3 = param_[6];
         const Scalar p1 = param_[7];
         const Scalar p2 = param_[8];
+        const Scalar xw = p3d[0], yw = p3d[1], zw = p3d[2];
 
-        Scalar x = p3d[0] / p3d[2];
-        Scalar y = p3d[1] / p3d[2];
+        Scalar x = xw / zw;
+        Scalar y = yw / zw;
         Scalar r2 = x * x + y * y;
         Scalar s = Scalar(1) + r2 * (k1 + r2 * (k2 + k3 * r2));
         Scalar a1 = 2 * x * y;
@@ -59,6 +60,51 @@ public:
 
         proj[0] = fx * mx + cx;
         proj[1] = fy * my + cy;
+
+        if (d_proj_d_p3d) {
+            Scalar d_r2_d_x = 2 * x;
+            Scalar d_r2_d_y = 2 * y;
+            Scalar d_s_d_r2 = k1 + 2 * k2 * r2 + 3 * k3 * r2 * r2;
+
+            Scalar d_mx_d_x = d_s_d_r2 * d_r2_d_x * x + s
+                + 2 * y * p1 + d_r2_d_x * p2 + 4 * x * p2;
+            Scalar d_mx_d_y = d_s_d_r2 * d_r2_d_y * x
+                + 2 * x * p1 + d_r2_d_y * p2;
+
+            Scalar d_my_d_x = d_s_d_r2 * d_r2_d_x * y
+                + 2 * y * p2 + d_r2_d_x * p1;
+            Scalar d_my_d_y = d_s_d_r2 * d_r2_d_y * y + s
+                + 2 * x * p2 + d_r2_d_y * p1 + 4 * y * p1;
+
+            Scalar zw_inv = Scalar(1) / zw;
+            Scalar d_x_d_zw = -xw * zw_inv * zw_inv;
+            Scalar d_y_d_zw = -yw * zw_inv * zw_inv;
+            Scalar d_r2_d_zw = d_r2_d_x * d_x_d_zw + d_r2_d_y * d_y_d_zw;
+            Scalar d_mx_d_zw = d_mx_d_x * d_x_d_zw + d_mx_d_y * d_y_d_zw + (p2 + x * d_s_d_r2) * d_r2_d_zw;
+            if (0) {
+                //Scalar d_xy_d_zw = -zw_inv * zw_inv * (xw * y + yw * x);
+                d_mx_d_zw = d_s_d_r2 * d_r2_d_zw * x + s * d_x_d_zw
+                    + 2 * p1 * (d_x_d_zw * y + d_y_d_zw * x)
+                    + p2 * (d_r2_d_zw + 4 * x * d_x_d_zw);
+            }
+            {
+                Scalar j1 = d_s_d_r2 * d_r2_d_zw * x + s * d_x_d_zw + 2 * p1 * (d_x_d_zw * y + d_y_d_zw * x) + p2 * d_r2_d_zw + p2 * 4 * x * d_x_d_zw
+                    + (d_s_d_r2 * d_r2_d_x * x + d_r2_d_x * p2)
+                        * d_x_d_zw
+                    + (d_s_d_r2 * d_r2_d_y * x + d_r2_d_y * p2)
+                        * d_y_d_zw;
+                Scalar j2 = d_s_d_r2 * d_r2_d_zw * x + s * d_x_d_zw + 2 * p1 * (d_x_d_zw * y + d_y_d_zw * x) + p2 * d_r2_d_zw + p2 * 4 * x * d_x_d_zw;
+            }
+            Scalar d_my_d_zw = d_my_d_x * d_x_d_zw + d_my_d_y * d_y_d_zw
+                + (p1 + y * d_s_d_r2) * (d_r2_d_x * d_x_d_zw + d_r2_d_y * d_y_d_zw);
+
+            (*d_proj_d_p3d)(0, 0) = d_mx_d_x * zw_inv * fx;
+            (*d_proj_d_p3d)(0, 1) = d_mx_d_y * zw_inv * fx;
+            (*d_proj_d_p3d)(0, 2) = d_mx_d_zw * fx;
+            (*d_proj_d_p3d)(1, 0) = d_my_d_x * zw_inv * fy;
+            (*d_proj_d_p3d)(1, 1) = d_my_d_y * zw_inv * fy;
+            (*d_proj_d_p3d)(1, 2) = d_my_d_zw * fy;
+        }
 
         return p3d[2] > Eigen::NumTraits<Scalar>::dummy_precision();
     }
