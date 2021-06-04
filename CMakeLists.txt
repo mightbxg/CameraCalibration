@@ -5,6 +5,7 @@ project(CameraCalibration)
 # dependencies
 find_package(Eigen3 REQUIRED)
 find_package(Ceres REQUIRED)
+find_package(OpenCV REQUIRED)
 
 # main library
 add_library(CameraCalibrator INTERFACE)
