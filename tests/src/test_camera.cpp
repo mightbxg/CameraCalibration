@@ -12,6 +12,7 @@ template <typename CamT>
 void testProjectUnproject()
 {
     auto cams = CamT::getTestProjections();
+    using Scalar = typename CamT::Scalar;
     using Vec2 = typename CamT::Vec2;
     using Vec3 = typename CamT::Vec3;
 
@@ -25,9 +26,10 @@ void testProjectUnproject()
     std::vector<cv::Point3d> pts3d;
     for (int x = -10; x <= 10; ++x)
         for (int y = -10; y <= 10; ++y)
-            for (int z = 0; z < 5; ++z)
+            for (int z = 0; z < 10; ++z)
                 pts3d.emplace_back(x, y, z);
 
+    const Scalar precision = std::sqrt(Eigen::NumTraits<Scalar>::dummy_precision());
     for (const auto& cam : cams) {
         const auto& p = cam.param();
         cv::Mat cam_mtx = (cv::Mat_<double>(3, 3) << p[0], 0.0, p[2],
@@ -38,16 +40,30 @@ void testProjectUnproject()
         std::vector<cv::Point2d> pts2d;
         cv::projectPoints(pts3d, rvec, tvec, cam_mtx, dis_cef, pts2d);
 
+        size_t num_projected { 0 }, num_unprojected { 0 };
         for (size_t i = 0; i < pts3d.size(); ++i) {
+            auto pt3d = toVec3(pts3d[i]);
             Vec2 pt2d;
-            bool success = cam.project(toVec3(pts3d[i]), pt2d);
-            if (success) {
+
+            if (cam.project(pt3d, pt2d)) {
+                ++num_projected;
                 auto pt2d_ref = toVec2(pts2d[i]);
-                EXPECT_TRUE(pt2d.isApprox(pt2d_ref))
+                EXPECT_TRUE(pt2d.isApprox(pt2d_ref, precision))
                     << "expect: " << pt2d_ref.transpose()
                     << "\nresult: " << pt2d.transpose();
+
+                // unproject
+                Vec3 pt3d_unproject;
+                if (cam.unproject(pt2d, pt3d_unproject)) {
+                    ++num_unprojected;
+                    pt3d /= pt3d[2];
+                    EXPECT_TRUE(pt3d_unproject.isApprox(pt3d, precision))
+                        << "expect: " << pt3d.transpose()
+                        << "\nresult: " << pt3d_unproject.transpose();
+                }
             }
         }
+        printf("\ttotal[%zu] projected[%zu] unprojected[%zu]\n", pts3d.size(), num_projected, num_unprojected);
     }
 }
 
@@ -64,7 +80,7 @@ void testProjectJacobian()
     std::vector<Vec3> pts3d;
     for (int x = -10; x <= 10; ++x)
         for (int y = -10; y <= 10; ++y)
-            for (int z = 0; z < 5; ++z)
+            for (int z = 0; z < 10; ++z)
                 pts3d.emplace_back(x, y, z);
 
     for (const auto& cam : cams) {

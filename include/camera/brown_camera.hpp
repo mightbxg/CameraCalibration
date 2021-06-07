@@ -6,6 +6,9 @@
 
 namespace bxg {
 
+/** @brief Brown camera model
+ *  @note The FOV should be below 100 degree
+ */
 template <typename Scalar_ = double>
 class BrownCamera {
 public:
@@ -20,6 +23,9 @@ public:
     using Mat32 = Eigen::Matrix<Scalar, 3, 2>;
     using Mat2N = Eigen::Matrix<Scalar, 2, N>;
     using Mat3N = Eigen::Matrix<Scalar, 3, N>;
+
+    /// tan(50/180*PI)
+    static constexpr Scalar MAX_VIEW_ANGLE_TAN = 1.19175359259421;
 
     BrownCamera()
         : param_(VecN::Zero())
@@ -108,7 +114,9 @@ public:
             (*d_proj_d_param)(1, 8) = fy * 2 * x * y;
         }
 
-        return pt3d[2] > Eigen::NumTraits<Scalar>::dummy_precision();
+        return pt3d.z() > Eigen::NumTraits<Scalar>::dummy_precision()
+            && std::abs(pt3d.x() / pt3d.z()) < MAX_VIEW_ANGLE_TAN
+            && std::abs(pt3d.y() / pt3d.z()) < MAX_VIEW_ANGLE_TAN;
     }
 
     template <unsigned ITER>
@@ -154,9 +162,22 @@ public:
     }
 
     inline bool unproject(const Vec2& pt2d, Vec3& pt3d, Mat32* d_pt3d_d_pt2d = nullptr,
-        Mat3N* d_pt3d_d_param = nullptr)
+        Mat3N* d_pt3d_d_param = nullptr) const
     {
-        return true;
+        const Scalar fx = param_[0];
+        const Scalar fy = param_[1];
+        const Scalar cx = param_[2];
+        const Scalar cy = param_[3];
+        const Scalar u = pt2d[0];
+        const Scalar v = pt2d[1];
+
+        const Scalar mx = (u - cx) / fx;
+        const Scalar my = (v - cy) / fy;
+        pt3d.template head<2>() = solveXY<4>(Vec2(mx, my));
+        pt3d.z() = Scalar(1);
+
+        return std::abs(pt3d.x()) < MAX_VIEW_ANGLE_TAN
+            && std::abs(pt3d.y()) < MAX_VIEW_ANGLE_TAN;
     }
 
     /// @brief Projections used for unit-tests
@@ -164,7 +185,7 @@ public:
     {
         std::vector<BrownCamera> res;
         VecN param;
-        param << 631.6558837890625, 631.6558837890625, 637.0838623046875, 390.05694580078125,
+        param << 631.6558837890625, 631.7558837890625, 637.0838623046875, 390.05694580078125,
             -0.03983112892232504, 0.03768857717889241, 0.0, 0.0007003028120895412, -0.0032084429231644357;
         res.emplace_back(param);
         return res;
