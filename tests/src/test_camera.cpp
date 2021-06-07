@@ -8,6 +8,17 @@
 
 namespace {
 
+template <typename Pt3>
+std::vector<Pt3> getTestPts()
+{
+    std::vector<Pt3> pts3d;
+    for (int x = -10; x <= 10; ++x)
+        for (int y = -10; y <= 10; ++y)
+            for (int z = 0; z < 10; ++z)
+                pts3d.emplace_back(x, y, z);
+    return pts3d;
+}
+
 template <typename CamT>
 void testProjectUnproject()
 {
@@ -23,12 +34,7 @@ void testProjectUnproject()
         return { pt.x, pt.y, pt.z };
     };
 
-    std::vector<cv::Point3d> pts3d;
-    for (int x = -10; x <= 10; ++x)
-        for (int y = -10; y <= 10; ++y)
-            for (int z = 0; z < 10; ++z)
-                pts3d.emplace_back(x, y, z);
-
+    const auto pts3d = getTestPts<cv::Point3d>();
     const Scalar precision = std::sqrt(Eigen::NumTraits<Scalar>::dummy_precision());
     for (const auto& cam : cams) {
         const auto& p = cam.param();
@@ -77,12 +83,7 @@ void testProjectJacobian()
     using Mat23 = typename CamT::Mat23;
     using Mat2N = typename CamT::Mat2N;
 
-    std::vector<Vec3> pts3d;
-    for (int x = -10; x <= 10; ++x)
-        for (int y = -10; y <= 10; ++y)
-            for (int z = 0; z < 10; ++z)
-                pts3d.emplace_back(x, y, z);
-
+    const auto pts3d = getTestPts<Vec3>();
     for (const auto& cam : cams) {
         for (const auto& pt3d : pts3d) {
             Vec2 pt2d;
