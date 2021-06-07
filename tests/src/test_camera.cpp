@@ -8,6 +8,9 @@
 
 namespace {
 
+template <typename Scalar>
+const Scalar precision = std::sqrt(Eigen::NumTraits<Scalar>::dummy_precision());
+
 template <typename Pt3>
 std::vector<Pt3> getTestPts()
 {
@@ -35,7 +38,6 @@ void testProjectUnproject()
     };
 
     const auto pts3d = getTestPts<cv::Point3d>();
-    const Scalar precision = std::sqrt(Eigen::NumTraits<Scalar>::dummy_precision());
     for (const auto& cam : cams) {
         const auto& p = cam.param();
         cv::Mat cam_mtx = (cv::Mat_<double>(3, 3) << p[0], 0.0, p[2],
@@ -54,7 +56,7 @@ void testProjectUnproject()
             if (cam.project(pt3d, pt2d)) {
                 ++num_projected;
                 auto pt2d_ref = toVec2(pts2d[i]);
-                EXPECT_TRUE(pt2d.isApprox(pt2d_ref, precision))
+                EXPECT_TRUE(pt2d.isApprox(pt2d_ref, precision<Scalar>))
                     << "expect: " << pt2d_ref.transpose()
                     << "\nresult: " << pt2d.transpose();
 
@@ -63,7 +65,7 @@ void testProjectUnproject()
                 if (cam.unproject(pt2d, pt3d_unproject)) {
                     ++num_unprojected;
                     pt3d /= pt3d[2];
-                    EXPECT_TRUE(pt3d_unproject.isApprox(pt3d, precision))
+                    EXPECT_TRUE(pt3d_unproject.isApprox(pt3d, precision<Scalar>))
                         << "expect: " << pt3d.transpose()
                         << "\nresult: " << pt3d_unproject.transpose();
                 }
@@ -113,6 +115,48 @@ void testProjectJacobian()
     }
 }
 
+template <typename CamT>
+void testUnprojectJacobian()
+{
+    auto cams = CamT::getTestProjections();
+    using Vec2 = typename CamT::Vec2;
+    using Vec3 = typename CamT::Vec3;
+    using VecN = typename CamT::VecN;
+    using Mat32 = typename CamT::Mat32;
+    using Mat3N = typename CamT::Mat3N;
+
+    const auto pts3d = getTestPts<Vec3>();
+    for (const auto& cam : cams) {
+        for (const auto& pt3d : pts3d) {
+            Vec2 pt2d;
+            if (cam.project(pt3d, pt2d)) {
+                Vec3 pt3d_unproject;
+                Mat32 J_pt;
+                Mat3N J_param;
+                if (cam.unproject(pt2d, pt3d_unproject, &J_pt, &J_param)) {
+                    test_jacobian(
+                        "J_pt", J_pt, [&](const Vec2& x) {
+                            Vec3 res;
+                            cam.unproject(pt2d + x, res);
+                            return res;
+                        },
+                        Vec2::Zero());
+
+                    test_jacobian(
+                        "J_param", J_param, [&](const VecN& p) {
+                            auto tmp = cam;
+                            tmp += p;
+                            Vec3 res;
+                            tmp.unproject(pt2d, res);
+                            return res;
+                        },
+                        VecN::Zero());
+                }
+            }
+        }
+    }
+}
+
 TEST(Camera, BrownProjectUnprojectFloat)
 {
     testProjectUnproject<bxg::BrownCamera<float>>();
@@ -131,6 +175,16 @@ TEST(Camera, BrownProjectJacobianFloat)
 TEST(Camera, BrownProjectJacobianDouble)
 {
     testProjectJacobian<bxg::BrownCamera<double>>();
+}
+
+//TEST(Camera, BrownUnprojectJacobianFloat)
+//{ // float test cannot pass
+//    testUnprojectJacobian<bxg::BrownCamera<float>>();
+//}
+
+TEST(Camera, BrownUnprojectJacobianDouble)
+{
+    testUnprojectJacobian<bxg::BrownCamera<double>>();
 }
 
 }

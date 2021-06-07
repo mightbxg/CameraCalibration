@@ -172,23 +172,39 @@ public:
         const Scalar mx = (u - cx) / fx;
         const Scalar my = (v - cy) / fy;
         Mat22 J_mxy_xy;
-        pt3d.template head<2>() = solveXY<4>(Vec2(mx, my), J_mxy_xy);
-        pt3d.z() = Scalar(1);
+        auto xy = solveXY<4>(Vec2(mx, my), J_mxy_xy);
+        Scalar x = xy.x(), y = xy.y();
+        pt3d = Vec3(x, y, 1.0);
 
         if (d_pt3d_d_pt2d || d_pt3d_d_param) {
+            // [dx_dmx dx_dmy]
+            // [dy_dmx dy_dmy]
             Mat22 J_xy_mxy = J_mxy_xy.inverse();
-            Scalar d_x_d_mx = J_xy_mxy(0, 0);
-            Scalar d_x_d_my = J_xy_mxy(0, 1);
-            Scalar d_y_d_mx = J_xy_mxy(1, 0);
-            Scalar d_y_d_my = J_xy_mxy(1, 1);
-            Scalar ifx = 1.0 / fx, ify = 1.0 / fy;
+            Vec2 d_xy_du = J_xy_mxy.col(0) / fx;
+            Vec2 d_xy_dv = J_xy_mxy.col(1) / fy;
 
             if (d_pt3d_d_pt2d) {
                 d_pt3d_d_pt2d->setZero();
-                (*d_pt3d_d_pt2d)(0, 0) = d_x_d_mx * ifx;
-                (*d_pt3d_d_pt2d)(0, 1) = d_x_d_my * ify;
-                (*d_pt3d_d_pt2d)(1, 0) = d_y_d_mx * ifx;
-                (*d_pt3d_d_pt2d)(1, 1) = d_y_d_my * ify;
+                d_pt3d_d_pt2d->col(0).template head<2>() = d_xy_du;
+                d_pt3d_d_pt2d->col(1).template head<2>() = d_xy_dv;
+            }
+
+            if (d_pt3d_d_param) {
+                d_pt3d_d_param->setZero();
+                d_pt3d_d_param->col(0).template head<2>() = -d_xy_du * mx;
+                d_pt3d_d_param->col(1).template head<2>() = -d_xy_dv * my;
+                d_pt3d_d_param->col(2).template head<2>() = -d_xy_du;
+                d_pt3d_d_param->col(3).template head<2>() = -d_xy_dv;
+
+                Scalar r2 = x * x + y * y;
+                Scalar a1 = 2 * x * y;
+                Scalar a2 = r2 + 2 * x * x;
+                Scalar a3 = r2 + 2 * y * y;
+                d_pt3d_d_param->col(4).template head<2>() = J_xy_mxy * Vec2(-x * r2, -y * r2);
+                d_pt3d_d_param->col(5).template head<2>() = d_pt3d_d_param->col(4).template head<2>() * r2;
+                d_pt3d_d_param->col(6).template head<2>() = d_pt3d_d_param->col(5).template head<2>() * r2;
+                d_pt3d_d_param->col(7).template head<2>() = J_xy_mxy * Vec2(-a1, -a3);
+                d_pt3d_d_param->col(8).template head<2>() = J_xy_mxy * Vec2(-a2, -a1);
             }
         }
 
@@ -201,7 +217,7 @@ public:
     {
         std::vector<BrownCamera> res;
         VecN param;
-        param << 631.6558837890625, 631.7558837890625, 637.0838623046875, 390.05694580078125,
+        param << 631.6558837890625, 632.6558837890625, 637.0838623046875, 390.05694580078125,
             -0.03983112892232504, 0.03768857717889241, 0.0, 0.0007003028120895412, -0.0032084429231644357;
         res.emplace_back(param);
         return res;
