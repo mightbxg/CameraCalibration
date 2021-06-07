@@ -19,6 +19,7 @@ public:
     using Vec2 = Eigen::Matrix<Scalar, 2, 1>;
     using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
 
+    using Mat22 = Eigen::Matrix<Scalar, 2, 2>;
     using Mat23 = Eigen::Matrix<Scalar, 2, 3>;
     using Mat32 = Eigen::Matrix<Scalar, 3, 2>;
     using Mat2N = Eigen::Matrix<Scalar, 2, N>;
@@ -120,10 +121,8 @@ public:
     }
 
     template <unsigned ITER>
-    inline Vec2 solveXY(const Vec2& mxy) const
+    inline Vec2 solveXY(const Vec2& mxy, Mat22& J) const
     {
-        using Mat22 = Eigen::Matrix<Scalar, 2, 2>;
-
         const Scalar k1 = param_[4];
         const Scalar k2 = param_[5];
         const Scalar k3 = param_[6];
@@ -146,7 +145,6 @@ public:
             Scalar d_r2_d_x = 2 * x;
             Scalar d_r2_d_y = 2 * y;
             Scalar d_s_d_r2 = k1 + 2 * k2 * r2 + 3 * k3 * r2 * r2;
-            Mat22 J;
             J(0, 0) = d_s_d_r2 * d_r2_d_x * x + s
                 + 2 * y * p1 + d_r2_d_x * p2 + 4 * x * p2;
             J(0, 1) = d_s_d_r2 * d_r2_d_y * x
@@ -173,8 +171,26 @@ public:
 
         const Scalar mx = (u - cx) / fx;
         const Scalar my = (v - cy) / fy;
-        pt3d.template head<2>() = solveXY<4>(Vec2(mx, my));
+        Mat22 J_mxy_xy;
+        pt3d.template head<2>() = solveXY<4>(Vec2(mx, my), J_mxy_xy);
         pt3d.z() = Scalar(1);
+
+        if (d_pt3d_d_pt2d || d_pt3d_d_param) {
+            Mat22 J_xy_mxy = J_mxy_xy.inverse();
+            Scalar d_x_d_mx = J_xy_mxy(0, 0);
+            Scalar d_x_d_my = J_xy_mxy(0, 1);
+            Scalar d_y_d_mx = J_xy_mxy(1, 0);
+            Scalar d_y_d_my = J_xy_mxy(1, 1);
+            Scalar ifx = 1.0 / fx, ify = 1.0 / fy;
+
+            if (d_pt3d_d_pt2d) {
+                d_pt3d_d_pt2d->setZero();
+                (*d_pt3d_d_pt2d)(0, 0) = d_x_d_mx * ifx;
+                (*d_pt3d_d_pt2d)(0, 1) = d_x_d_my * ify;
+                (*d_pt3d_d_pt2d)(1, 0) = d_y_d_mx * ifx;
+                (*d_pt3d_d_pt2d)(1, 1) = d_y_d_my * ify;
+            }
+        }
 
         return std::abs(pt3d.x()) < MAX_VIEW_ANGLE_TAN
             && std::abs(pt3d.y()) < MAX_VIEW_ANGLE_TAN;
