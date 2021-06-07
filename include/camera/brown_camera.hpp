@@ -133,7 +133,7 @@ public:
             Scalar a3 = r2 + 2 * y * y;
             Scalar mx = s * x + a1 * p1 + a2 * p2;
             Scalar my = s * y + a1 * p2 + a3 * p1;
-            Vec2 residual(mx - mxy[0], my - mxy[0]);
+            Vec2 residual(mx - mxy[0], my - mxy[1]);
 
             Scalar d_r2_d_x = 2 * x;
             Scalar d_r2_d_y = 2 * y;
@@ -148,11 +148,7 @@ public:
             J(1, 1) = d_s_d_r2 * d_r2_d_y * y + s
                 + 2 * x * p2 + d_r2_d_y * p1 + 4 * y * p1;
 
-            Vec2 h = (J.transpose() * J).ldlt().solve(-J.transpose() * residual);
-            xy += h;
-            std::cout << "-------------------------------\n";
-            std::cout << J << std::endl;
-            //            std::cout << h.transpose() << std::endl;
+            xy += (J.transpose() * J).ldlt().solve(-J.transpose() * residual);
         }
         return xy;
     }
