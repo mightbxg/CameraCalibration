@@ -20,14 +20,14 @@ public:
         , tvec_(tvec)
     {
     }
-    RigidTransform(const Vec3& rvec, const Vec3& tvec = Vec3::Zero())
-        : rmat_(Eigen::AngleAxis<Scalar>(rvec.norm(), rvec.normalized()).toRotationMatrix())
-        , tvec_(tvec)
+    RigidTransform(const Vec6& param = Vec6::Zero())
+        : RigidTransform(toRotationMatrix(param.template head<3>()), param.template tail<3>())
     {
     }
-    RigidTransform(const Vec6& param = Vec6::Zero())
-        : RigidTransform(Vec3(param.template head<3>()), param.template tail<3>())
+
+    static inline Mat33 toRotationMatrix(const Vec3& rvec)
     {
+        return Eigen::AngleAxis<Scalar>(rvec.norm(), rvec.normalized()).toRotationMatrix();
     }
 
     static inline Mat33 skewSym(const Vec3& v)
@@ -48,6 +48,13 @@ public:
             J_param->block(0, 3, 3, 3) = Mat33::Identity();
         }
         return ret;
+    }
+
+    const RigidTransform operator+(const Vec6& p) const
+    {
+        auto R = toRotationMatrix(p.template head<3>());
+        auto t = p.template tail<3>();
+        return RigidTransform(R * rmat_, R * tvec_ + t);
     }
 
 public:

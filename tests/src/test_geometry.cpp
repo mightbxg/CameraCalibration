@@ -43,7 +43,9 @@ template <typename Scalar>
 void testRigidTransform()
 {
     using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
-    auto poses = getTestPoses<Scalar>();
+    using Vec6 = Eigen::Matrix<Scalar, 6, 1>;
+    using Mat36 = Eigen::Matrix<Scalar, 3, 6>;
+    auto poses = getTestPoses<Scalar>(500);
     auto pts = getTestPts<Scalar>();
 
     const Scalar eps = TestConstants<Scalar>::epsilon;
@@ -60,10 +62,18 @@ void testRigidTransform()
             cv::Mat pt_cv_dst = rmat * pt_cv + tvec;
             auto pt_ref = pt_cv_dst.ptr<Vec3>()[0];
 
-            auto pt_dst = rt.transform(pt);
+            Mat36 J_param;
+            auto pt_dst = rt.transform(pt, &J_param);
             ASSERT_TRUE(isApprox(pt_ref, pt_dst, eps))
                 << "expect: " << pt_ref.transpose()
                 << "\nresult: " << pt_dst.transpose();
+
+            test_jacobian(
+                "J_param", J_param, [&](const Vec6& p) {
+                    auto _rt = rt + p;
+                    return _rt.transform(pt);
+                },
+                Vec6::Zero());
         }
     }
 }
@@ -71,6 +81,11 @@ void testRigidTransform()
 TEST(Geometry, RigidTransformDouble)
 {
     testRigidTransform<double>();
+}
+
+TEST(Geometry, RigidTransformFloat)
+{
+    testRigidTransform<float>();
 }
 
 } //anonymous namespace
