@@ -18,6 +18,17 @@ struct TestConstants<float> {
     static constexpr double max_norm = 1e-2;
 };
 
+template <typename Derived>
+inline bool isApprox(const Eigen::MatrixBase<Derived>& a,
+    const Eigen::MatrixBase<Derived>& b,
+    double max_norm = TestConstants<typename Derived::Scalar>::max_norm)
+{
+    if (a.isZero(max_norm) && b.isZero(max_norm))
+        return (a - b).isZero(max_norm);
+    else
+        return a.isApprox(b, max_norm);
+}
+
 template <typename Derived1, typename Derived2, typename F>
 void test_jacobian(
     const std::string& name, const Eigen::MatrixBase<Derived1>& Ja, F func,
