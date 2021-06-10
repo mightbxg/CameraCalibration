@@ -16,6 +16,9 @@ target_compile_options(CameraCalibrator INTERFACE
     "-Wall;-Wextra;-Wunused;-Wformat=2;-Wshadow")
 target_link_libraries(CameraCalibrator INTERFACE Eigen3::Eigen Ceres::ceres)
 
+# samples
+add_subdirectory(samples)
+
 # tests
 enable_testing()
 add_subdirectory(tests)
