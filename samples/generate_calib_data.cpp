@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
     // rvec, tvec => RigidTransform
     using Transform = bxg::RigidTransform<double>;
     auto getRt = [](const Vec3d& r, const Vec3d& t) -> Transform {
-        Transform::Vec6 params;
+        Transform::VecN params;
         params << r[0], r[1], r[2], t[0], t[1], t[2];
         return Transform(params);
     };

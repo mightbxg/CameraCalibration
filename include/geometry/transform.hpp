@@ -9,18 +9,19 @@ namespace bxg {
 template <typename Scalar_ = double>
 class RigidTransform {
 public:
+    static constexpr int N = 6; //!< rx, ry, rz, tx, ty, tz
     using Scalar = Scalar_;
     using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
-    using Vec6 = Eigen::Matrix<Scalar, 6, 1>;
+    using VecN = Eigen::Matrix<Scalar, N, 1>;
     using Mat33 = Eigen::Matrix<Scalar, 3, 3>;
-    using Mat36 = Eigen::Matrix<Scalar, 3, 6>;
+    using Mat3N = Eigen::Matrix<Scalar, 3, N>;
 
     RigidTransform(const Mat33& rmat, const Vec3& tvec = Vec3::Zero())
         : rmat_(rmat)
         , tvec_(tvec)
     {
     }
-    RigidTransform(const Vec6& param = Vec6::Zero())
+    RigidTransform(const VecN& param = VecN::Zero())
         : RigidTransform(toRotationMatrix(param.template head<3>()), param.template tail<3>())
     {
     }
@@ -40,7 +41,7 @@ public:
     }
 
     // Jacobian: [d_rvec d_tvec]
-    inline Vec3 transform(const Vec3& pt, Mat36* J_param = nullptr) const
+    inline Vec3 transform(const Vec3& pt, Mat3N* J_param = nullptr) const
     {
         Vec3 ret = rmat_ * pt + tvec_;
         if (J_param) {
@@ -50,7 +51,7 @@ public:
         return ret;
     }
 
-    const RigidTransform operator+(const Vec6& p) const
+    const RigidTransform operator+(const VecN& p) const
     {
         auto R = toRotationMatrix(p.template head<3>());
         auto t = p.template tail<3>();
