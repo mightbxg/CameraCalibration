@@ -42,8 +42,8 @@ public:
         return BrownCamera<Scalar2>(param_.template cast<Scalar2>());
     }
 
-    inline bool project(const Vec3& pt3d, Vec2& proj, Mat23* d_proj_d_pt3d = nullptr,
-        Mat2N* d_proj_d_param = nullptr) const
+    inline bool project(const Vec3& pt3d, Vec2& proj, Scalar* d_proj_d_pt3d = nullptr,
+        Scalar* d_proj_d_param = nullptr) const
     {
         const Scalar fx = param_[0];
         const Scalar fy = param_[1];
@@ -70,6 +70,8 @@ public:
         proj[1] = fy * my + cy;
 
         if (d_proj_d_pt3d) {
+            Eigen::Map<Mat23> J_pt3d(d_proj_d_pt3d);
+
             Scalar d_r2_d_x = 2 * x;
             Scalar d_r2_d_y = 2 * y;
             Scalar d_s_d_r2 = k1 + 2 * k2 * r2 + 3 * k3 * r2 * r2;
@@ -88,30 +90,31 @@ public:
             Scalar d_x_d_zw = -xw * zw_inv * zw_inv;
             Scalar d_y_d_zw = -yw * zw_inv * zw_inv;
 
-            (*d_proj_d_pt3d)(0, 0) = d_mx_d_x * zw_inv * fx;
-            (*d_proj_d_pt3d)(0, 1) = d_mx_d_y * zw_inv * fx;
-            (*d_proj_d_pt3d)(0, 2) = (d_mx_d_x * d_x_d_zw + d_mx_d_y * d_y_d_zw) * fx;
-            (*d_proj_d_pt3d)(1, 0) = d_my_d_x * zw_inv * fy;
-            (*d_proj_d_pt3d)(1, 1) = d_my_d_y * zw_inv * fy;
-            (*d_proj_d_pt3d)(1, 2) = (d_my_d_x * d_x_d_zw + d_my_d_y * d_y_d_zw) * fy;
+            J_pt3d(0, 0) = d_mx_d_x * zw_inv * fx;
+            J_pt3d(0, 1) = d_mx_d_y * zw_inv * fx;
+            J_pt3d(0, 2) = (d_mx_d_x * d_x_d_zw + d_mx_d_y * d_y_d_zw) * fx;
+            J_pt3d(1, 0) = d_my_d_x * zw_inv * fy;
+            J_pt3d(1, 1) = d_my_d_y * zw_inv * fy;
+            J_pt3d(1, 2) = (d_my_d_x * d_x_d_zw + d_my_d_y * d_y_d_zw) * fy;
         }
 
         if (d_proj_d_param) {
-            (*d_proj_d_param).setZero();
-            (*d_proj_d_param)(0, 0) = mx;
-            (*d_proj_d_param)(0, 2) = Scalar(1);
-            (*d_proj_d_param)(1, 1) = my;
-            (*d_proj_d_param)(1, 3) = Scalar(1);
+            Eigen::Map<Mat2N> J_param(d_proj_d_param);
+            J_param.setZero();
+            J_param(0, 0) = mx;
+            J_param(0, 2) = Scalar(1);
+            J_param(1, 1) = my;
+            J_param(1, 3) = Scalar(1);
 
-            (*d_proj_d_param)(0, 4) = fx * x * r2;
-            (*d_proj_d_param)(1, 4) = fy * y * r2;
-            d_proj_d_param->col(5) = d_proj_d_param->col(4) * r2;
-            d_proj_d_param->col(6) = d_proj_d_param->col(5) * r2;
+            J_param(0, 4) = fx * x * r2;
+            J_param(1, 4) = fy * y * r2;
+            J_param.col(5) = J_param.col(4) * r2;
+            J_param.col(6) = J_param.col(5) * r2;
 
-            (*d_proj_d_param)(0, 7) = fx * 2 * x * y;
-            (*d_proj_d_param)(0, 8) = fx * (r2 + 2 * x * x);
-            (*d_proj_d_param)(1, 7) = fy * (r2 + 2 * y * y);
-            (*d_proj_d_param)(1, 8) = fy * 2 * x * y;
+            J_param(0, 7) = fx * 2 * x * y;
+            J_param(0, 8) = fx * (r2 + 2 * x * x);
+            J_param(1, 7) = fy * (r2 + 2 * y * y);
+            J_param(1, 8) = fy * 2 * x * y;
         }
 
         return pt3d.z() > Eigen::NumTraits<Scalar>::dummy_precision()
@@ -158,8 +161,8 @@ public:
         return xy;
     }
 
-    inline bool unproject(const Vec2& pt2d, Vec3& pt3d, Mat32* d_pt3d_d_pt2d = nullptr,
-        Mat3N* d_pt3d_d_param = nullptr) const
+    inline bool unproject(const Vec2& pt2d, Vec3& pt3d, Scalar* d_pt3d_d_pt2d = nullptr,
+        Scalar* d_pt3d_d_param = nullptr) const
     {
         const Scalar fx = param_[0];
         const Scalar fy = param_[1];
@@ -183,27 +186,29 @@ public:
             Vec2 d_xy_dv = J_xy_mxy.col(1) / fy;
 
             if (d_pt3d_d_pt2d) {
-                d_pt3d_d_pt2d->setZero();
-                d_pt3d_d_pt2d->col(0).template head<2>() = d_xy_du;
-                d_pt3d_d_pt2d->col(1).template head<2>() = d_xy_dv;
+                Eigen::Map<Mat32> J_pt2d(d_pt3d_d_pt2d);
+                J_pt2d.setZero();
+                J_pt2d.col(0).template head<2>() = d_xy_du;
+                J_pt2d.col(1).template head<2>() = d_xy_dv;
             }
 
             if (d_pt3d_d_param) {
-                d_pt3d_d_param->setZero();
-                d_pt3d_d_param->col(0).template head<2>() = -d_xy_du * mx;
-                d_pt3d_d_param->col(1).template head<2>() = -d_xy_dv * my;
-                d_pt3d_d_param->col(2).template head<2>() = -d_xy_du;
-                d_pt3d_d_param->col(3).template head<2>() = -d_xy_dv;
+                Eigen::Map<Mat3N> J_param(d_pt3d_d_param);
+                J_param.setZero();
+                J_param.col(0).template head<2>() = -d_xy_du * mx;
+                J_param.col(1).template head<2>() = -d_xy_dv * my;
+                J_param.col(2).template head<2>() = -d_xy_du;
+                J_param.col(3).template head<2>() = -d_xy_dv;
 
                 Scalar r2 = x * x + y * y;
                 Scalar a1 = 2 * x * y;
                 Scalar a2 = r2 + 2 * x * x;
                 Scalar a3 = r2 + 2 * y * y;
-                d_pt3d_d_param->col(4).template head<2>() = J_xy_mxy * Vec2(-x * r2, -y * r2);
-                d_pt3d_d_param->col(5).template head<2>() = d_pt3d_d_param->col(4).template head<2>() * r2;
-                d_pt3d_d_param->col(6).template head<2>() = d_pt3d_d_param->col(5).template head<2>() * r2;
-                d_pt3d_d_param->col(7).template head<2>() = J_xy_mxy * Vec2(-a1, -a3);
-                d_pt3d_d_param->col(8).template head<2>() = J_xy_mxy * Vec2(-a2, -a1);
+                J_param.col(4).template head<2>() = J_xy_mxy * Vec2(-x * r2, -y * r2);
+                J_param.col(5).template head<2>() = J_param.col(4).template head<2>() * r2;
+                J_param.col(6).template head<2>() = J_param.col(5).template head<2>() * r2;
+                J_param.col(7).template head<2>() = J_xy_mxy * Vec2(-a1, -a3);
+                J_param.col(8).template head<2>() = J_xy_mxy * Vec2(-a2, -a1);
             }
         }
 

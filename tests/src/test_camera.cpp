@@ -91,7 +91,7 @@ void testProjectJacobian()
             Vec2 pt2d;
             Mat23 J_pt;
             Mat2N J_param;
-            bool success = cam.project(pt3d, pt2d, &J_pt, &J_param);
+            bool success = cam.project(pt3d, pt2d, &J_pt(0, 0), &J_param(0, 0));
             if (success) {
                 test_jacobian(
                     "J_pt", J_pt, [&](const Vec3& x) {
@@ -133,7 +133,7 @@ void testUnprojectJacobian()
                 Vec3 pt3d_unproject;
                 Mat32 J_pt;
                 Mat3N J_param;
-                if (cam.unproject(pt2d, pt3d_unproject, &J_pt, &J_param)) {
+                if (cam.unproject(pt2d, pt3d_unproject, &J_pt(0, 0), &J_param(0, 0))) {
                     test_jacobian(
                         "J_pt", J_pt, [&](const Vec2& x) {
                             Vec3 res;
