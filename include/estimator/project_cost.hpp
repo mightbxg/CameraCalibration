@@ -27,9 +27,14 @@ public:
         auto camera = CameraType(Eigen::Map<const CameraParams>(parameters[0]));
         auto trans = TransformType(Eigen::Map<const TransformParams>(parameters[1]));
 
-        //auto pt3d_cam = trans.transform(pt3d_, reinterpret_cast<TransformType::Mat3N*>(jacobians[1]));
+        auto pt3d_cam = trans.transform(pt3d_, jacobians[1]);
+        Vec2 pt2d_proj;
+        bool ret = camera.project(pt3d_cam, pt2d_proj, nullptr, jacobians[0]);
 
-        return true;
+        Eigen::Map<Vec2> res(residuals);
+        res = pt2d_proj - pt2d_;
+
+        return ret;
     }
 
 private:
