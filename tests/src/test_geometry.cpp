@@ -63,7 +63,7 @@ void testRigidTransform()
             auto pt_ref = pt_cv_dst.ptr<Vec3>()[0];
 
             Mat36 J_param;
-            auto pt_dst = rt.transform(pt, &J_param);
+            auto pt_dst = rt.transform(pt, &J_param(0, 0));
             ASSERT_TRUE(isApprox(pt_ref, pt_dst, eps))
                 << "expect: " << pt_ref.transpose()
                 << "\nresult: " << pt_dst.transpose();

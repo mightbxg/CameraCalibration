@@ -16,7 +16,7 @@ public:
     using Mat33 = Eigen::Matrix<Scalar, 3, 3>;
     using Mat3N = Eigen::Matrix<Scalar, 3, N>;
 
-    RigidTransform(const Mat33& rmat, const Vec3& tvec = Vec3::Zero())
+    RigidTransform(const Mat33& rmat, const Vec3& tvec)
         : rmat_(rmat)
         , tvec_(tvec)
     {
@@ -41,12 +41,13 @@ public:
     }
 
     // Jacobian: [d_rvec d_tvec]
-    inline Vec3 transform(const Vec3& pt, Mat3N* J_param = nullptr) const
+    inline Vec3 transform(const Vec3& pt, Scalar* J_param = nullptr) const
     {
         Vec3 ret = rmat_ * pt + tvec_;
         if (J_param) {
-            J_param->block(0, 0, 3, 3) = -skewSym(ret);
-            J_param->block(0, 3, 3, 3) = Mat33::Identity();
+            Eigen::Map<Mat3N> jac(J_param);
+            jac.block(0, 0, 3, 3) = -skewSym(ret);
+            jac.block(0, 3, 3, 3) = Mat33::Identity();
         }
         return ret;
     }
