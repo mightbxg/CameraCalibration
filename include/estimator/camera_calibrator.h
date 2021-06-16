@@ -12,8 +12,8 @@ public:
     using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
     using Params = std::vector<Scalar>;
 
-    static bool optimize(const std::vector<Vec3>& pts3d,
-        const std::vector<Vec2>& pts2d, Params& params);
+    static bool optimize(const std::vector<std::vector<Vec3>>& vpts3d,
+        const std::vector<std::vector<Vec2>>& vpts2d, Params& params);
 };
 
 } //namespace bxg
