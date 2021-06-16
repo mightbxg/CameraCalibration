@@ -79,7 +79,8 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
         if (!pnp_solver.solve(pts3d, pts2d, trans_params))
             continue;
         for (size_t pt_idx = 0; pt_idx < pts3d.size(); ++pt_idx) {
-            CostFunction* cost_func = new bxg::ProjectCostFunction(pts3d[pt_idx], pts2d[pt_idx]);
+            //CostFunction* cost_func = new bxg::ProjectCostFunction(pts3d[pt_idx], pts2d[pt_idx]);
+            CostFunction* cost_func = new AutoDiffCostFunction<bxg::ProjectCostFunctor, 2, 9, 6>(new bxg::ProjectCostFunctor(pts3d[pt_idx], pts2d[pt_idx]));
             problem.AddResidualBlock(cost_func, nullptr, { ptr_cam_params, ptr_trans_params });
         }
     }

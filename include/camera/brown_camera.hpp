@@ -25,7 +25,7 @@ public:
     using Mat3N = Eigen::Matrix<Scalar, 3, N>;
 
     /// tan(50/180*PI)
-    static constexpr Scalar MAX_VIEW_ANGLE_TAN = 1.19175359259421;
+    //static constexpr Scalar MAX_VIEW_ANGLE_TAN = Scalar(1.19175359259421);
 
     BrownCamera()
         : param_(VecN::Zero())
@@ -60,9 +60,9 @@ public:
         Scalar y = yw / zw;
         Scalar r2 = x * x + y * y;
         Scalar s = Scalar(1) + r2 * (k1 + r2 * (k2 + k3 * r2));
-        Scalar a1 = 2 * x * y;
-        Scalar a2 = r2 + 2 * x * x;
-        Scalar a3 = r2 + 2 * y * y;
+        Scalar a1 = Scalar(2) * x * y;
+        Scalar a2 = r2 + Scalar(2) * x * x;
+        Scalar a3 = r2 + Scalar(2) * y * y;
         Scalar mx = s * x + a1 * p1 + a2 * p2;
         Scalar my = s * y + a1 * p2 + a3 * p1;
 
@@ -72,19 +72,19 @@ public:
         if (d_proj_d_pt3d) {
             Eigen::Map<Mat23> J_pt3d(d_proj_d_pt3d);
 
-            Scalar d_r2_d_x = 2 * x;
-            Scalar d_r2_d_y = 2 * y;
-            Scalar d_s_d_r2 = k1 + 2 * k2 * r2 + 3 * k3 * r2 * r2;
+            Scalar d_r2_d_x = Scalar(2) * x;
+            Scalar d_r2_d_y = Scalar(2) * y;
+            Scalar d_s_d_r2 = k1 + Scalar(2) * k2 * r2 + Scalar(3) * k3 * r2 * r2;
 
             Scalar d_mx_d_x = d_s_d_r2 * d_r2_d_x * x + s
-                + 2 * y * p1 + d_r2_d_x * p2 + 4 * x * p2;
+                + Scalar(2) * y * p1 + d_r2_d_x * p2 + Scalar(4) * x * p2;
             Scalar d_mx_d_y = d_s_d_r2 * d_r2_d_y * x
-                + 2 * x * p1 + d_r2_d_y * p2;
+                + Scalar(2) * x * p1 + d_r2_d_y * p2;
 
             Scalar d_my_d_x = d_s_d_r2 * d_r2_d_x * y
-                + 2 * y * p2 + d_r2_d_x * p1;
+                + Scalar(2) * y * p2 + d_r2_d_x * p1;
             Scalar d_my_d_y = d_s_d_r2 * d_r2_d_y * y + s
-                + 2 * x * p2 + d_r2_d_y * p1 + 4 * y * p1;
+                + Scalar(2) * x * p2 + d_r2_d_y * p1 + Scalar(4) * y * p1;
 
             Scalar zw_inv = Scalar(1) / zw;
             Scalar d_x_d_zw = -xw * zw_inv * zw_inv;
@@ -111,15 +111,16 @@ public:
             J_param.col(5) = J_param.col(4) * r2;
             J_param.col(6) = J_param.col(5) * r2;
 
-            J_param(0, 7) = fx * 2 * x * y;
-            J_param(0, 8) = fx * (r2 + 2 * x * x);
-            J_param(1, 7) = fy * (r2 + 2 * y * y);
-            J_param(1, 8) = fy * 2 * x * y;
+            J_param(0, 7) = fx * Scalar(2) * x * y;
+            J_param(0, 8) = fx * (r2 + Scalar(2) * x * x);
+            J_param(1, 7) = fy * (r2 + Scalar(2) * y * y);
+            J_param(1, 8) = fy * Scalar(2) * x * y;
         }
 
-        return pt3d.z() > Eigen::NumTraits<Scalar>::dummy_precision()
-            && std::abs(pt3d.x() / pt3d.z()) < MAX_VIEW_ANGLE_TAN
-            && std::abs(pt3d.y() / pt3d.z()) < MAX_VIEW_ANGLE_TAN;
+        return true;
+        //return pt3d.z() > Eigen::NumTraits<Scalar>::dummy_precision()
+        //    && std::abs(pt3d.x() / pt3d.z()) < MAX_VIEW_ANGLE_TAN
+        //    && std::abs(pt3d.y() / pt3d.z()) < MAX_VIEW_ANGLE_TAN;
     }
 
     template <unsigned ITER>
@@ -212,8 +213,9 @@ public:
             }
         }
 
-        return std::abs(pt3d.x()) < MAX_VIEW_ANGLE_TAN
-            && std::abs(pt3d.y()) < MAX_VIEW_ANGLE_TAN;
+        return true;
+        //return std::abs(pt3d.x()) < MAX_VIEW_ANGLE_TAN
+        //    && std::abs(pt3d.y()) < MAX_VIEW_ANGLE_TAN;
     }
 
     /// @brief Projections used for unit-tests

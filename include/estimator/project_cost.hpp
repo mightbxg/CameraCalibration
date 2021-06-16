@@ -8,6 +8,39 @@ namespace bxg {
 using CameraType = BrownCamera<double>;
 using TransformType = RigidTransform<double>;
 
+struct ProjectCostFunctor {
+public:
+    using Vec2 = Eigen::Vector2d;
+    using Vec3 = Eigen::Vector3d;
+
+    ProjectCostFunctor(const Vec3& pt3d, const Vec2& pt2d)
+        : pt3d_(pt3d)
+        , pt2d_(pt2d)
+    {
+    }
+
+    template <typename T>
+    bool operator()(const T* const cam_params,
+        const T* const trans_params, T* residual) const
+    {
+        using CamT = BrownCamera<T>;
+        using TransT = RigidTransform<T>;
+        auto camera = CamT(Eigen::Map<const typename CamT::VecN>(cam_params));
+        auto trans = TransT(Eigen::Map<const typename TransT::VecN>(trans_params));
+
+        auto pt3d_cam = trans.transform({ T(pt3d_[0]), T(pt3d_[1]), T(pt3d_[2]) });
+        Eigen::Matrix<T, 2, 1> pt2d_proj;
+        bool ret = camera.project(pt3d_cam, pt2d_proj);
+        residual[0] = pt2d_proj[0] - T(pt2d_[0]);
+        residual[1] = pt2d_proj[1] - T(pt2d_[1]);
+        return ret;
+    }
+
+private:
+    const Vec3 pt3d_;
+    const Vec2 pt2d_;
+};
+
 class ProjectCostFunction : public ceres::SizedCostFunction<2, CameraType::N, TransformType::N> {
 public:
     using Vec2 = CameraType::Vec2;
