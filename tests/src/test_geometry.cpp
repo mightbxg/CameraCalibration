@@ -42,9 +42,10 @@ std::vector<Eigen::Matrix<Scalar, 3, 1>> getTestPts()
 template <typename Scalar>
 void testRigidTransform()
 {
-    using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
-    using Vec6 = Eigen::Matrix<Scalar, 6, 1>;
-    using Mat36 = Eigen::Matrix<Scalar, 3, 6>;
+    using TransT = bxg::RigidTransform<Scalar>;
+    using Vec3 = typename TransT::Vec3;
+    using VecN = typename TransT::VecN;
+    using Mat3N = typename TransT::Mat3N;
     auto poses = getTestPoses<Scalar>(500);
     auto pts = getTestPts<Scalar>();
 
@@ -62,18 +63,18 @@ void testRigidTransform()
             cv::Mat pt_cv_dst = rmat * pt_cv + tvec;
             auto pt_ref = pt_cv_dst.ptr<Vec3>()[0];
 
-            Mat36 J_param;
+            Mat3N J_param;
             auto pt_dst = rt.transform(pt, &J_param(0, 0));
             ASSERT_TRUE(isApprox(pt_ref, pt_dst, eps))
                 << "expect: " << pt_ref.transpose()
                 << "\nresult: " << pt_dst.transpose();
 
             test_jacobian(
-                "J_param", J_param, [&](const Vec6& p) {
+                "J_param", J_param, [&](const VecN& p) {
                     auto _rt = rt + p;
                     return _rt.transform(pt);
                 },
-                Vec6::Zero());
+                VecN::Zero());
         }
     }
 }

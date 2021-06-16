@@ -13,8 +13,8 @@ public:
     using Scalar = Scalar_;
     using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
     using VecN = Eigen::Matrix<Scalar, N, 1>;
-    using Mat33 = Eigen::Matrix<Scalar, 3, 3>;
-    using Mat3N = Eigen::Matrix<Scalar, 3, N>;
+    using Mat33 = Eigen::Matrix<Scalar, 3, 3, Eigen::RowMajor>;
+    using Mat3N = Eigen::Matrix<Scalar, 3, N, Eigen::RowMajor>;
 
     RigidTransform(const Mat33& rmat, const Vec3& tvec)
         : rmat_(rmat)

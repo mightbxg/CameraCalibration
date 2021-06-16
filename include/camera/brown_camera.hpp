@@ -18,14 +18,14 @@ public:
     using Vec2 = Eigen::Matrix<Scalar, 2, 1>;
     using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
 
-    using Mat22 = Eigen::Matrix<Scalar, 2, 2>;
-    using Mat23 = Eigen::Matrix<Scalar, 2, 3>;
-    using Mat32 = Eigen::Matrix<Scalar, 3, 2>;
-    using Mat2N = Eigen::Matrix<Scalar, 2, N>;
-    using Mat3N = Eigen::Matrix<Scalar, 3, N>;
+    using Mat22 = Eigen::Matrix<Scalar, 2, 2, Eigen::RowMajor>;
+    using Mat23 = Eigen::Matrix<Scalar, 2, 3, Eigen::RowMajor>;
+    using Mat32 = Eigen::Matrix<Scalar, 3, 2, Eigen::RowMajor>;
+    using Mat2N = Eigen::Matrix<Scalar, 2, N, Eigen::RowMajor>;
+    using Mat3N = Eigen::Matrix<Scalar, 3, N, Eigen::RowMajor>;
 
     /// tan(50/180*PI)
-    //static constexpr Scalar MAX_VIEW_ANGLE_TAN = Scalar(1.19175359259421);
+    const Scalar MAX_VIEW_ANGLE_TAN = Scalar(1.19175359259421);
 
     BrownCamera()
         : param_(VecN::Zero())
@@ -117,10 +117,9 @@ public:
             J_param(1, 8) = fy * Scalar(2) * x * y;
         }
 
-        return true;
-        //return pt3d.z() > Eigen::NumTraits<Scalar>::dummy_precision()
-        //    && std::abs(pt3d.x() / pt3d.z()) < MAX_VIEW_ANGLE_TAN
-        //    && std::abs(pt3d.y() / pt3d.z()) < MAX_VIEW_ANGLE_TAN;
+        return pt3d.z() > Eigen::NumTraits<Scalar>::dummy_precision()
+            && abs(pt3d.x() / pt3d.z()) < MAX_VIEW_ANGLE_TAN
+            && abs(pt3d.y() / pt3d.z()) < MAX_VIEW_ANGLE_TAN;
     }
 
     template <unsigned ITER>
@@ -213,9 +212,8 @@ public:
             }
         }
 
-        return true;
-        //return std::abs(pt3d.x()) < MAX_VIEW_ANGLE_TAN
-        //    && std::abs(pt3d.y()) < MAX_VIEW_ANGLE_TAN;
+        return abs(pt3d.x()) < MAX_VIEW_ANGLE_TAN
+            && abs(pt3d.y()) < MAX_VIEW_ANGLE_TAN;
     }
 
     /// @brief Projections used for unit-tests
