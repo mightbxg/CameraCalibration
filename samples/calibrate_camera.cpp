@@ -45,6 +45,8 @@ int main(int argc, char* argv[])
     }
 
     vector<double> params = { 1, 1, 0, 0, 0, 0, 0, 0, 0 };
+    auto success = bxg::CameraCalibrator::optimize(vpts3d, vpts2d, params);
+    cout << "result: " << success << '\n';
 
     return 0;
 }
