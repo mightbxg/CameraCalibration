@@ -20,7 +20,7 @@ target_compile_features(CameraCalibrator PUBLIC cxx_std_17)
 target_compile_options(CameraCalibrator PUBLIC
     "-Wall;-Wextra;-Wunused;-Wformat=2;-Wshadow")
 target_link_libraries(CameraCalibrator
-    PUBLIC Eigen3::Eigen
+    PUBLIC Eigen3::Eigen ${OpenCV_LIBS}
     PRIVATE Ceres::ceres)
 
 # samples
