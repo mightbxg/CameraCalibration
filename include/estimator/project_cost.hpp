@@ -60,12 +60,25 @@ public:
         auto camera = CameraType(Eigen::Map<const CameraParams>(parameters[0]));
         auto trans = TransformType(Eigen::Map<const TransformParams>(parameters[1]));
 
-        double* J_cam = jacobians ? jacobians[0] : nullptr;
-        double* J_trans = jacobians ? jacobians[1] : nullptr;
+        double* ptr_J_cam = nullptr;
+        TransformType::Mat3N d_pt3d_d_trans;
+        CameraType::Mat23 d_proj_d_pt3d;
+        double* ptr_d_pt3d_d_trans = nullptr;
+        double* ptr_d_proj_d_pt3d = nullptr;
+        if (jacobians) {
+            ptr_J_cam = jacobians[0];
+            ptr_d_pt3d_d_trans = &d_pt3d_d_trans(0, 0);
+            ptr_d_proj_d_pt3d = &d_proj_d_pt3d(0, 0);
+        }
 
-        auto pt3d_cam = trans.transform(pt3d_, J_trans);
+        auto pt3d_cam = trans.transform(pt3d_, ptr_d_pt3d_d_trans);
         Vec2 pt2d_proj;
-        bool ret = camera.project(pt3d_cam, pt2d_proj, nullptr, J_cam);
+        bool ret = camera.project(pt3d_cam, pt2d_proj, ptr_d_proj_d_pt3d, ptr_J_cam);
+
+        if (jacobians) {
+            Eigen::Map<Eigen::Matrix<double, 2, TransformType::N, Eigen::RowMajor>> J_trans(jacobians[1]);
+            J_trans.noalias() = d_proj_d_pt3d * d_pt3d_d_trans;
+        }
 
         Eigen::Map<Vec2> res(residuals);
         res = pt2d_proj - pt2d_;
