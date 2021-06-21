@@ -10,30 +10,41 @@ using TransformType = RigidTransform<double>;
 
 class PoseLocalParameterization : public ceres::LocalParameterization {
 public:
+    template <typename Derived, std::enable_if_t<Derived::ColsAtCompileTime == 1 && Derived::RowsAtCompileTime == 3, bool> = true>
+    inline static auto deltaQ(const Eigen::MatrixBase<Derived>& rvec)
+    {
+        using Scalar = typename Derived::Scalar;
+        Eigen::Matrix<Scalar, 4, 1> v;
+        v.template head<3>() = rvec / Scalar(2);
+        v[3] = Scalar(1);
+        return Eigen::Quaternion<Scalar>(v);
+    }
+
     virtual bool Plus(const double* x, const double* delta, double* x_plus_delta) const override
     {
         using VecN = TransformType::VecN;
-        using Vec3 = TransformType::Vec3;
-        using Mat33 = TransformType::Mat33;
+        using Vec6 = Eigen::Matrix<double, 6, 1>;
+        using Quaternion = TransformType::Quaternion;
+
         Eigen::Map<const VecN> params(x);
-        Eigen::Map<const VecN> del(delta);
+        Eigen::Map<const Vec6> del(delta);
         Eigen::Map<VecN> params_p_delta(x_plus_delta);
 
-        Mat33 R = TransformType::toRotationMatrix(params.head<3>());
-        Vec3 t = params.tail<3>();
-        Mat33 dR = TransformType::toRotationMatrix(del.head<3>());
-        Vec3 dt = del.tail<3>();
-        params_p_delta.head<3>() = TransformType::toRotationVector(dR * R);
-        params_p_delta.tail<3>() = dR * t + dt;
+        Quaternion q(params.tail<4>());
+        Quaternion dq = deltaQ(del.tail<3>());
+        params_p_delta.tail<4>() = (q * dq).normalized().coeffs();
+
+        params_p_delta.head<3>() = q.toRotationMatrix() * del.head<3>() + params.head<3>();
+
         return true;
     }
     virtual bool ComputeJacobian(const double* /*x*/, double* jacobian) const override
     {
-        Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>> jac(jacobian);
+        Eigen::Map<Eigen::Matrix<double, 7, 6, Eigen::RowMajor>> jac(jacobian);
         jac.setIdentity();
         return true;
     }
-    virtual int GlobalSize() const override { return 6; }
+    virtual int GlobalSize() const override { return 7; }
     virtual int LocalSize() const override { return 6; }
 };
 

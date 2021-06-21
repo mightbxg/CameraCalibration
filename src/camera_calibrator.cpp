@@ -32,7 +32,7 @@ public:
     }
     bool solve(const vector<Eigen::Vector3d>& pts3d,
         const vector<Eigen::Vector2d>& pts2d,
-        Eigen::Matrix<double, 6, 1>& params) const
+        Eigen::Matrix<double, 7, 1>& params) const
     {
         vector<Point3d> _pts3d;
         vector<Point2d> _pts2d;
@@ -44,7 +44,11 @@ public:
         for (const auto& p : pts2d)
             _pts2d.emplace_back(p.x(), p.y());
         bool success = cv::solvePnP(_pts3d, _pts2d, cam_mtx, dis_cef, r, t);
-        params << r[0], r[1], r[2], t[0], t[1], t[2];
+        if (success) {
+            Eigen::Vector3d rvec(r[0], r[1], r[2]);
+            Eigen::Quaterniond q(Eigen::AngleAxisd(rvec.norm(), rvec.normalized()));
+            params << t[0], t[1], t[2], q.x(), q.y(), q.z(), q.w();
+        }
         return success;
     }
 
@@ -79,8 +83,8 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
         const auto& pts2d = vpts2d[frame_idx];
         ASSERT(pts3d.size() == pts2d.size());
         // get initial pose
-        //        if (!pnp_solver.solve(pts3d, pts2d, trans_params))
-        //            continue; //FIXME
+        if (!pnp_solver.solve(pts3d, pts2d, trans_params))
+            continue;
         trans_params.head<3>() *= 2;
         for (size_t pt_idx = 0; pt_idx < pts3d.size(); ++pt_idx) {
 #if 1
