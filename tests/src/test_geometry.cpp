@@ -1,17 +1,18 @@
 #include "geometry/transform.hpp"
 #include "test_utils.hpp"
 #include "gtest/gtest.h"
+#include <opencv2/core/eigen.hpp>
 #include <opencv2/opencv.hpp>
 #include <random>
 
 namespace {
 
 template <typename Scalar>
-std::vector<Eigen::Matrix<Scalar, 6, 1>> getTestPoses(size_t num = 1000)
+std::vector<Eigen::Matrix<Scalar, 7, 1>> getTestPoses(size_t num = 1000)
 {
     using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
-    using Vec6 = Eigen::Matrix<Scalar, 6, 1>;
-    std::vector<Vec6> ret;
+    using Vec7 = Eigen::Matrix<Scalar, 7, 1>;
+    std::vector<Vec7> ret;
 
     std::default_random_engine re;
     std::uniform_real_distribution<> dis_axis(-10.0, 10.0);
@@ -19,9 +20,10 @@ std::vector<Eigen::Matrix<Scalar, 6, 1>> getTestPoses(size_t num = 1000)
     std::uniform_int_distribution<> dis_coord(-5, 5);
     ret.reserve(num);
     for (size_t i = 0; i < num; ++i) {
-        Vec6 p;
-        p.template head<3>() = Vec3(dis_axis(re), dis_axis(re), dis_axis(re)).normalized() * dis_theta(re);
-        p.template tail<3>() = Vec3(dis_coord(re), dis_coord(re), dis_coord(re));
+        Vec7 p;
+        Eigen::AngleAxis<Scalar> rvec(dis_theta(re), Vec3(dis_axis(re), dis_axis(re), dis_axis(re)).normalized());
+        p.template tail<4>() = Eigen::Quaternion<Scalar>(rvec).coeffs();
+        p.template head<3>() = Vec3(dis_coord(re), dis_coord(re), dis_coord(re));
         ret.push_back(p);
     }
     return ret;
@@ -53,10 +55,10 @@ void testRigidTransform()
 
     for (const auto& pose : poses) {
         bxg::RigidTransform<Scalar> rt(pose);
-        cv::Mat rvec({ pose[0], pose[1], pose[2] });
-        cv::Mat tvec({ pose[3], pose[4], pose[5] });
+        cv::Mat tvec({ pose[0], pose[1], pose[2] });
+        Eigen::Quaternion<Scalar> quaternion(pose.template tail<4>());
         cv::Mat rmat;
-        cv::Rodrigues(rvec, rmat);
+        cv::eigen2cv(quaternion.toRotationMatrix(), rmat);
 
         for (const auto& pt : pts) {
             cv::Mat pt_cv({ pt.x(), pt.y(), pt.z() });

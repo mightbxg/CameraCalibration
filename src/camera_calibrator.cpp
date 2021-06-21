@@ -71,9 +71,7 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
     problem_options.local_parameterization_ownership = DO_NOT_TAKE_OWNERSHIP;
     Problem problem(problem_options);
     double* ptr_cam_params = &params[0];
-#if USE_PERTURBATION_MODEL
     LocalParameterization* local_parameterization = new PoseLocalParameterization();
-#endif
     for (size_t frame_idx = 0; frame_idx < vpts3d.size(); ++frame_idx) {
         auto& trans_params = transforms[frame_idx];
         double* ptr_trans_params = &trans_params[0];
@@ -81,8 +79,8 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
         const auto& pts2d = vpts2d[frame_idx];
         ASSERT(pts3d.size() == pts2d.size());
         // get initial pose
-        if (!pnp_solver.solve(pts3d, pts2d, trans_params))
-            continue;
+        //        if (!pnp_solver.solve(pts3d, pts2d, trans_params))
+        //            continue; //FIXME
         trans_params.head<3>() *= 2;
         for (size_t pt_idx = 0; pt_idx < pts3d.size(); ++pt_idx) {
 #if 1
@@ -136,9 +134,7 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
 #endif
 
             problem.AddResidualBlock(cost_func, nullptr, { ptr_cam_params, ptr_trans_params });
-#if USE_PERTURBATION_MODEL
             problem.SetParameterization(ptr_trans_params, local_parameterization);
-#endif
         }
         //exit(0);
     }
@@ -150,10 +146,7 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
     ceres::Solve(options, &problem, &summary);
     cout << summary.FullReport() << endl;
 
-#if USE_PERTURBATION_MODEL
     delete local_parameterization;
-#endif
-
     return true;
 }
 

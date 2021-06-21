@@ -24,7 +24,7 @@ target_link_libraries(CameraCalibrator
     PRIVATE Ceres::ceres)
 
 # samples
-add_subdirectory(samples)
+#add_subdirectory(samples)
 
 # tests
 enable_testing()

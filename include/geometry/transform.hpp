@@ -6,14 +6,14 @@
 
 namespace bxg {
 
-#define USE_PERTURBATION_MODEL 1
-
 template <typename Scalar_ = double>
 class RigidTransform {
 public:
-    static constexpr int N = 6; //!< rx, ry, rz, tx, ty, tz
+    static constexpr int N = 7; //!< tx, ty, tz, qx, qy, qz, qw
     using Scalar = Scalar_;
+    using Quaternion = Eigen::Quaternion<Scalar>;
     using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
+    using Vec4 = Eigen::Matrix<Scalar, 4, 1>;
     using VecN = Eigen::Matrix<Scalar, N, 1>;
     using Mat33 = Eigen::Matrix<Scalar, 3, 3, Eigen::RowMajor>;
     using Mat3N = Eigen::Matrix<Scalar, 3, N, Eigen::RowMajor>;
@@ -24,7 +24,7 @@ public:
     {
     }
     RigidTransform(const VecN& param = VecN::Zero())
-        : RigidTransform(toRotationMatrix(param.template head<3>()), param.template tail<3>())
+        : RigidTransform(Quaternion(param.template tail<4>()).toRotationMatrix(), param.template head<3>())
     {
     }
 
@@ -49,51 +49,31 @@ public:
         return ret;
     }
 
-    // Jacobian: [d_rvec d_tvec]
+    // Jacobian: [d_tvec d_rvec]
     inline Vec3 transform(const Vec3& pt, Scalar* J_param = nullptr) const
     {
         Vec3 ret = rmat_ * pt + tvec_;
         if (J_param) {
             Eigen::Map<Mat3N> jac(J_param);
-#if USE_PERTURBATION_MODEL
-            jac.block(0, 0, 3, 3) = -skewSym(ret);
-#else
-            Eigen::AngleAxis<Scalar> aa;
-            aa.fromRotationMatrix(rmat_);
-            Scalar v1, v2; // v1=sinx/x v2=(1-cosx)/x
-            if (abs(aa.angle()) < Eigen::NumTraits<Scalar>::dummy_precision()) {
-                v1 = Scalar(1);
-                v2 = Scalar(0);
-            } else {
-                v1 = sin(aa.angle()) / aa.angle();
-                v2 = (Scalar(1) - cos(aa.angle())) / aa.angle();
-            }
-            Mat33 J_l = v1 * Mat33::Identity()
-                + (Scalar(1) - v1) * aa.axis() * aa.axis().transpose()
-                + v2 * skewSym(aa.axis());
-            jac.block(0, 0, 3, 3).noalias() = -skewSym(rmat_ * pt) * J_l;
-#endif
-            jac.block(0, 3, 3, 3) = Mat33::Identity();
+            jac.block(0, 0, 3, 3) = rmat_;
+            jac.block(0, 3, 3, 3).noalias() = -rmat_ * skewSym(pt);
+            jac.template rightCols<1>().setZero();
         }
         return ret;
     }
 
     const RigidTransform operator+(const VecN& p) const
     {
-#if USE_PERTURBATION_MODEL
-        auto R = toRotationMatrix(p.template head<3>());
-        auto t = p.template tail<3>();
-        return RigidTransform(R * rmat_, R * tvec_ + t);
-#else
-        return RigidTransform(params() + p);
-#endif
+        auto R = toRotationMatrix(p.template segment<3>(3));
+        auto t = p.template head<3>();
+        return RigidTransform(rmat_ * R, rmat_ * t + tvec_);
     }
 
     VecN params() const
     {
         VecN p;
-        p.template head<3>() = toRotationVector(rmat_);
-        p.template tail<3>() = tvec_;
+        p.template tail<4>() = Quaternion(rmat_).coeffs();
+        p.template head<3>() = tvec_;
         return p;
     }
 
