@@ -6,7 +6,7 @@
 
 namespace bxg {
 
-#define USE_PERTURBATION_MODEL 0
+#define USE_PERTURBATION_MODEL 1
 
 template <typename Scalar_ = double>
 class RigidTransform {

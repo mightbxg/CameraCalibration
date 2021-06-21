@@ -117,6 +117,7 @@ public:
             J_param(1, 8) = fy * Scalar(2) * x * y;
         }
 
+        return true;
         return pt3d.z() > Eigen::NumTraits<Scalar>::dummy_precision()
             && abs(pt3d.x() / pt3d.z()) < MAX_VIEW_ANGLE_TAN
             && abs(pt3d.y() / pt3d.z()) < MAX_VIEW_ANGLE_TAN;

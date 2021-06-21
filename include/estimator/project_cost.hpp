@@ -8,6 +8,35 @@ namespace bxg {
 using CameraType = BrownCamera<double>;
 using TransformType = RigidTransform<double>;
 
+class PoseLocalParameterization : public ceres::LocalParameterization {
+public:
+    virtual bool Plus(const double* x, const double* delta, double* x_plus_delta) const override
+    {
+        using VecN = TransformType::VecN;
+        using Vec3 = TransformType::Vec3;
+        using Mat33 = TransformType::Mat33;
+        Eigen::Map<const VecN> params(x);
+        Eigen::Map<const VecN> del(delta);
+        Eigen::Map<VecN> params_p_delta(x_plus_delta);
+
+        Mat33 R = TransformType::toRotationMatrix(params.head<3>());
+        Vec3 t = params.tail<3>();
+        Mat33 dR = TransformType::toRotationMatrix(del.head<3>());
+        Vec3 dt = del.tail<3>();
+        params_p_delta.head<3>() = TransformType::toRotationVector(dR * R);
+        params_p_delta.tail<3>() = dR * t + dt;
+        return true;
+    }
+    virtual bool ComputeJacobian(const double* /*x*/, double* jacobian) const override
+    {
+        Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>> jac(jacobian);
+        jac.setIdentity();
+        return true;
+    }
+    virtual int GlobalSize() const override { return 6; }
+    virtual int LocalSize() const override { return 6; }
+};
+
 struct ProjectCostFunctor {
 public:
     using Vec2 = Eigen::Vector2d;
