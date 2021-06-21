@@ -55,7 +55,7 @@ public:
         Vec3 ret = rmat_ * pt + tvec_;
         if (J_param) {
             Eigen::Map<Mat3N> jac(J_param);
-            jac.block(0, 0, 3, 3) = rmat_;
+            jac.block(0, 0, 3, 3).setIdentity();
             jac.block(0, 3, 3, 3).noalias() = -rmat_ * skewSym(pt);
             jac.template rightCols<1>().setZero();
         }
@@ -66,7 +66,7 @@ public:
     {
         auto R = toRotationMatrix(p.template segment<3>(3));
         auto t = p.template head<3>();
-        return RigidTransform(rmat_ * R, rmat_ * t + tvec_);
+        return RigidTransform(rmat_ * R, t + tvec_);
     }
 
     VecN params() const

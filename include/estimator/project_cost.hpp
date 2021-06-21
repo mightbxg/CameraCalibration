@@ -34,7 +34,7 @@ public:
         Quaternion dq = deltaQ(del.tail<3>());
         params_p_delta.tail<4>() = (q * dq).normalized().coeffs();
 
-        params_p_delta.head<3>() = q.toRotationMatrix() * del.head<3>() + params.head<3>();
+        params_p_delta.head<3>() = del.head<3>() + params.head<3>();
 
         return true;
     }
