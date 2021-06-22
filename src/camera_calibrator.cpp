@@ -62,7 +62,7 @@ private:
 namespace bxg {
 
 bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
-    const vector<vector<Vec2>>& vpts2d, Params& params)
+    const vector<vector<Vec2>>& vpts2d, Params& params, vector<Scalar>* covariance)
 {
     using namespace ceres;
     using TransformParams = ProjectCostFunction::TransformParams;
@@ -149,6 +149,23 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
     Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     cout << summary.FullReport() << endl;
+
+    if (covariance) {
+        Covariance::Options cov_options;
+        Covariance cov(cov_options);
+
+        vector<pair<const double*, const double*>> cov_blocks;
+        cov_blocks.push_back(make_pair(ptr_cam_params, ptr_cam_params));
+
+        if (cov.Compute(cov_blocks, &problem)) {
+            Eigen::Matrix<Scalar, CameraType::N, CameraType::N, Eigen::RowMajor> covs;
+            cov.GetCovarianceBlock(ptr_cam_params, ptr_cam_params, covs.data());
+            Eigen::Matrix<Scalar, CameraType::N, 1> diag = covs.diagonal();
+            covariance->resize(CameraType::N);
+            for (int i = 0; i < CameraType::N; ++i)
+                covariance->at(i) = diag[i];
+        }
+    }
 
     delete local_parameterization;
     return true;

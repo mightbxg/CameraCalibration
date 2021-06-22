@@ -54,10 +54,15 @@ int main(int argc, char* argv[])
 
     vector<double> params_ref = { 532.827, 532.946, 342.487, 233.856, -0.280881, 0.0251717, 0.163449, 0.00121657, -0.000135549 };
     vector<double> params = { 500.0, 500.0, 320.0, 240.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-    bxg::CameraCalibrator::optimize(vpts3d, vpts2d, params);
+    vector<double> covariance;
+    bxg::CameraCalibrator::optimize(vpts3d, vpts2d, params, &covariance);
 
     cout << "refere: " << params_ref << '\n';
     cout << "result: " << params << '\n';
+    cout << "covari:";
+    for (double v : covariance)
+        cout << " " << v;
+    cout << endl;
 
     return 0;
 }
