@@ -85,7 +85,6 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
         // get initial pose
         if (!pnp_solver.solve(pts3d, pts2d, trans_params))
             continue;
-        trans_params.head<3>() *= 2;
         for (size_t pt_idx = 0; pt_idx < pts3d.size(); ++pt_idx) {
 #if 1
             CostFunction* cost_func = new bxg::ProjectCostFunction(pts3d[pt_idx], pts2d[pt_idx]);
