@@ -61,7 +61,7 @@ private:
 
 namespace bxg {
 
-bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
+CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
     const vector<vector<Vec2>>& vpts2d, Params& params, vector<Scalar>* covariance)
 {
     using namespace ceres;
@@ -167,8 +167,24 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
         }
     }
 
+    vector<Scalar> residuals;
+    Problem::EvaluateOptions eval_options;
+    eval_options.apply_loss_function = false;
+    eval_options.num_threads = 8;
+    problem.Evaluate(eval_options, nullptr, &residuals, nullptr, nullptr);
+    Vec3 errs(numeric_limits<Scalar>::max(), 0, 0); // min, max, avg
+    for (size_t i = 0; i < residuals.size(); i += 2) {
+        Scalar err = Vec2(residuals[i], residuals[i + 1]).norm();
+        if (err < errs[0])
+            errs[0] = err;
+        else if (err > errs[1])
+            errs[1] = err;
+        errs[2] += err;
+    }
+    errs[2] /= residuals.size() / Scalar(2);
+
     delete local_parameterization;
-    return true;
+    return errs;
 }
 
 } //namespace bxg

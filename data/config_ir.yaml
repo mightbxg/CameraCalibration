@@ -1,0 +1,8 @@
+%YAML:1.0
+---
+# Config file of MzTarget
+useEllipse: 0 # Use ellipses as control points
+useCorner: 1 # Use corners as control points
+imageScale: 1.0 # Resize scale that will be applied to the input image
+maxSigma: 0.5 # Max fitting error of ellipses
+blackThresh: -1 # Black pixel value on board, auto determined if set to negative

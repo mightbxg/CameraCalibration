@@ -12,7 +12,7 @@ public:
     using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
     using Params = std::vector<Scalar>;
 
-    static bool optimize(const std::vector<std::vector<Vec3>>& vpts3d,
+    static Vec3 optimize(const std::vector<std::vector<Vec3>>& vpts3d,
         const std::vector<std::vector<Vec2>>& vpts2d, Params& params,
         std::vector<Scalar>* covariance = nullptr);
 };

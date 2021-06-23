@@ -3,3 +3,4 @@
 .vs/
 CMakeLists.txt.user*
 *.orig
+/Temp/
