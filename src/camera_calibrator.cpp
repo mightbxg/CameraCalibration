@@ -32,7 +32,7 @@ public:
     }
     bool solve(const vector<Eigen::Vector3d>& pts3d,
         const vector<Eigen::Vector2d>& pts2d,
-        Eigen::Matrix<double, 6, 1>& params) const
+        Eigen::Matrix<double, 7, 1>& params) const
     {
         vector<Point3d> _pts3d;
         vector<Point2d> _pts2d;
@@ -44,7 +44,11 @@ public:
         for (const auto& p : pts2d)
             _pts2d.emplace_back(p.x(), p.y());
         bool success = cv::solvePnP(_pts3d, _pts2d, cam_mtx, dis_cef, r, t);
-        params << r[0], r[1], r[2], t[0], t[1], t[2];
+        if (success) {
+            Eigen::Vector3d rvec(r[0], r[1], r[2]);
+            Eigen::Quaterniond q(Eigen::AngleAxisd(rvec.norm(), rvec.normalized()));
+            params << t[0], t[1], t[2], q.x(), q.y(), q.z(), q.w();
+        }
         return success;
     }
 
@@ -58,7 +62,7 @@ private:
 namespace bxg {
 
 bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
-    const vector<vector<Vec2>>& vpts2d, Params& params)
+    const vector<vector<Vec2>>& vpts2d, Params& params, vector<Scalar>* covariance)
 {
     using namespace ceres;
     using TransformParams = ProjectCostFunction::TransformParams;
@@ -71,9 +75,7 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
     problem_options.local_parameterization_ownership = DO_NOT_TAKE_OWNERSHIP;
     Problem problem(problem_options);
     double* ptr_cam_params = &params[0];
-#if USE_PERTURBATION_MODEL
     LocalParameterization* local_parameterization = new PoseLocalParameterization();
-#endif
     for (size_t frame_idx = 0; frame_idx < vpts3d.size(); ++frame_idx) {
         auto& trans_params = transforms[frame_idx];
         double* ptr_trans_params = &trans_params[0];
@@ -136,9 +138,7 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
 #endif
 
             problem.AddResidualBlock(cost_func, nullptr, { ptr_cam_params, ptr_trans_params });
-#if USE_PERTURBATION_MODEL
             problem.SetParameterization(ptr_trans_params, local_parameterization);
-#endif
         }
         //exit(0);
     }
@@ -150,10 +150,24 @@ bool CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
     ceres::Solve(options, &problem, &summary);
     cout << summary.FullReport() << endl;
 
-#if USE_PERTURBATION_MODEL
-    delete local_parameterization;
-#endif
+    if (covariance) {
+        Covariance::Options cov_options;
+        Covariance cov(cov_options);
 
+        vector<pair<const double*, const double*>> cov_blocks;
+        cov_blocks.push_back(make_pair(ptr_cam_params, ptr_cam_params));
+
+        if (cov.Compute(cov_blocks, &problem)) {
+            Eigen::Matrix<Scalar, CameraType::N, CameraType::N, Eigen::RowMajor> covs;
+            cov.GetCovarianceBlock(ptr_cam_params, ptr_cam_params, covs.data());
+            Eigen::Matrix<Scalar, CameraType::N, 1> diag = covs.diagonal();
+            covariance->resize(CameraType::N);
+            for (int i = 0; i < CameraType::N; ++i)
+                covariance->at(i) = diag[i];
+        }
+    }
+
+    delete local_parameterization;
     return true;
 }
 
