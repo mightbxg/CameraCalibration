@@ -62,10 +62,9 @@ private:
 namespace bxg {
 
 CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
-    const vector<vector<Vec2>>& vpts2d, Params& params, vector<Scalar>* covariance)
+    const vector<vector<Vec2>>& vpts2d, CameraParams& params, vector<Scalar>* covariance)
 {
     using namespace ceres;
-    using TransformParams = ProjectCostFunction::TransformParams;
     ASSERT(vpts3d.size() == vpts2d.size());
     ASSERT(params.size() == CameraType::N);
     vector<TransformParams> transforms(vpts3d.size());
@@ -92,12 +91,20 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
         }
     }
 
-    Solver::Options options;
-    options.num_threads = 1;
-    options.minimizer_progress_to_stdout = true;
+    Solver::Options _options;
+    _options.minimizer_progress_to_stdout = options.minimizer_progress_to_stdout;
     Solver::Summary summary;
-    ceres::Solve(options, &problem, &summary);
-    cout << summary.FullReport() << endl;
+    ceres::Solve(_options, &problem, &summary);
+    switch (options.report_type) {
+    case ReportType::BRIEF:
+        cout << summary.BriefReport() << endl;
+        break;
+    case ReportType::FULL:
+        cout << summary.FullReport() << endl;
+        break;
+    default:
+        break;
+    }
 
     if (covariance) {
         Covariance::Options cov_options;
@@ -131,6 +138,9 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
         errs[2] += err;
     }
     errs[2] /= residuals.size() / Scalar(2);
+
+    cam_ = params;
+    transforms_ = transforms;
 
     delete local_parameterization;
     return errs;
