@@ -36,6 +36,8 @@ private:
     std::vector<TransformParams> transforms_;
 
     // input data
+    std::vector<std::vector<Vec3>> vpts3d_;
+    std::vector<std::vector<Vec2>> vpts2d_;
 };
 
 } //namespace bxg

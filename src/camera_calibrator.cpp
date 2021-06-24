@@ -141,6 +141,8 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
 
     cam_ = params;
     transforms_ = transforms;
+    vpts3d_ = vpts3d;
+    vpts2d_ = vpts2d;
 
     delete local_parameterization;
     return errs;
