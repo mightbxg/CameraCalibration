@@ -6,8 +6,9 @@
 
 namespace bxg {
 
+/// @brief Rigid transform with rotation represented by quaternion
 template <typename Scalar_ = double>
-class RigidTransform {
+class QuaternionTransform {
 public:
     static constexpr int N = 7; //!< tx, ty, tz, qx, qy, qz, qw
     using Scalar = Scalar_;
@@ -18,13 +19,13 @@ public:
     using Mat33 = Eigen::Matrix<Scalar, 3, 3, Eigen::RowMajor>;
     using Mat3N = Eigen::Matrix<Scalar, 3, N, Eigen::RowMajor>;
 
-    RigidTransform(const Mat33& rmat, const Vec3& tvec)
+    QuaternionTransform(const Mat33& rmat, const Vec3& tvec)
         : rmat_(rmat)
         , tvec_(tvec)
     {
     }
-    RigidTransform(const VecN& param = VecN::Zero())
-        : RigidTransform(Quaternion(param.template tail<4>()).toRotationMatrix(), param.template head<3>())
+    QuaternionTransform(const VecN& param = VecN::Zero())
+        : QuaternionTransform(Quaternion(param.template tail<4>()).toRotationMatrix(), param.template head<3>())
     {
     }
 
@@ -62,11 +63,11 @@ public:
         return ret;
     }
 
-    const RigidTransform operator+(const VecN& p) const
+    const QuaternionTransform operator+(const VecN& p) const
     {
         auto R = toRotationMatrix(p.template segment<3>(3));
         auto t = p.template head<3>();
-        return RigidTransform(rmat_ * R, t + tvec_);
+        return QuaternionTransform(rmat_ * R, t + tvec_);
     }
 
     VecN params() const

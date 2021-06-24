@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
             pts3d.emplace_back(x * bd_step, y * bd_step, 0.0);
 
     // rvec, tvec => RigidTransform
-    using Transform = bxg::RigidTransform<double>;
+    using Transform = bxg::QuaternionTransform<double>;
     auto getRt = [](const Vec3d& r, const Vec3d& t) -> Transform {
         Transform::VecN params;
         params << r[0], r[1], r[2], t[0], t[1], t[2];

@@ -44,7 +44,7 @@ std::vector<Eigen::Matrix<Scalar, 3, 1>> getTestPts()
 template <typename Scalar>
 void testRigidTransform()
 {
-    using TransT = bxg::RigidTransform<Scalar>;
+    using TransT = bxg::QuaternionTransform<Scalar>;
     using Vec3 = typename TransT::Vec3;
     using VecN = typename TransT::VecN;
     using Mat3N = typename TransT::Mat3N;
@@ -54,7 +54,7 @@ void testRigidTransform()
     const Scalar eps = TestConstants<Scalar>::epsilon;
 
     for (const auto& pose : poses) {
-        bxg::RigidTransform<Scalar> rt(pose);
+        bxg::QuaternionTransform<Scalar> rt(pose);
         cv::Mat tvec({ pose[0], pose[1], pose[2] });
         Eigen::Quaternion<Scalar> quaternion(pose.template tail<4>());
         cv::Mat rmat;

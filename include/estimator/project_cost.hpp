@@ -6,7 +6,7 @@
 
 namespace bxg {
 using CameraType = BrownCamera<double>;
-using TransformType = RigidTransform<double>;
+using TransformType = QuaternionTransform<double>;
 
 class PoseLocalParameterization : public ceres::LocalParameterization {
 public:
@@ -64,7 +64,7 @@ public:
         const T* const trans_params, T* residual) const
     {
         using CamT = BrownCamera<T>;
-        using TransT = RigidTransform<T>;
+        using TransT = QuaternionTransform<T>;
         auto camera = CamT(Eigen::Map<const typename CamT::VecN>(cam_params));
         auto trans = TransT(Eigen::Map<const typename TransT::VecN>(trans_params));
 
