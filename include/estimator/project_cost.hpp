@@ -30,18 +30,20 @@ public:
         Eigen::Map<const Vec6> del(delta);
         Eigen::Map<VecN> params_p_delta(x_plus_delta);
 
-        Quaternion q(params.tail<4>());
-        Quaternion dq = deltaQ(del.tail<3>());
-        params_p_delta.tail<4>() = (q * dq).normalized().coeffs();
+        Quaternion q(params.head<4>());
+        Quaternion dq = deltaQ(del.head<3>());
+        params_p_delta.head<4>() = (q * dq).normalized().coeffs();
 
-        params_p_delta.head<3>() = del.head<3>() + params.head<3>();
+        params_p_delta.tail<3>() = del.tail<3>() + params.tail<3>();
 
         return true;
     }
     virtual bool ComputeJacobian(const double* /*x*/, double* jacobian) const override
     {
         Eigen::Map<Eigen::Matrix<double, 7, 6, Eigen::RowMajor>> jac(jacobian);
-        jac.setIdentity();
+        jac.setZero();
+        jac.block(0, 0, 3, 3).setIdentity();
+        jac.block(4, 3, 3, 3).setIdentity();
         return true;
     }
     virtual int GlobalSize() const override { return 7; }

@@ -10,7 +10,7 @@ namespace bxg {
 template <typename Scalar_ = double>
 class QuaternionTransform {
 public:
-    static constexpr int N = 7; //!< tx, ty, tz, qx, qy, qz, qw
+    static constexpr int N = 7; //!< qx, qy, qz, qw, tx, ty, tz
     using Scalar = Scalar_;
     using Quaternion = Eigen::Quaternion<Scalar>;
     using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
@@ -25,7 +25,7 @@ public:
     {
     }
     QuaternionTransform(const VecN& param = VecN::Zero())
-        : QuaternionTransform(Quaternion(param.template tail<4>()).toRotationMatrix(), param.template head<3>())
+        : QuaternionTransform(Quaternion(param.template head<4>()).toRotationMatrix(), param.template tail<3>())
     {
     }
 
@@ -56,25 +56,25 @@ public:
         Vec3 ret = rmat_ * pt + tvec_;
         if (J_param) {
             Eigen::Map<Mat3N> jac(J_param);
-            jac.block(0, 0, 3, 3).setIdentity();
-            jac.block(0, 3, 3, 3).noalias() = -rmat_ * skewSym(pt);
-            jac.template rightCols<1>().setZero();
+            jac.block(0, 0, 3, 3).noalias() = -rmat_ * skewSym(pt);
+            jac.col(3).setZero();
+            jac.block(0, 4, 3, 3).setIdentity();
         }
         return ret;
     }
 
     const QuaternionTransform operator+(const VecN& p) const
     {
-        auto R = toRotationMatrix(p.template segment<3>(3));
-        auto t = p.template head<3>();
+        auto R = toRotationMatrix(p.template head<3>());
+        auto t = p.template tail<3>();
         return QuaternionTransform(rmat_ * R, t + tvec_);
     }
 
     VecN params() const
     {
         VecN p;
-        p.template tail<4>() = Quaternion(rmat_).coeffs();
-        p.template head<3>() = tvec_;
+        p.template head<4>() = Quaternion(rmat_).coeffs();
+        p.template tail<3>() = tvec_;
         return p;
     }
 

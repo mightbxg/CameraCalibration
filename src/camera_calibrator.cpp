@@ -47,7 +47,7 @@ public:
         if (success) {
             Eigen::Vector3d rvec(r[0], r[1], r[2]);
             Eigen::Quaterniond q(Eigen::AngleAxisd(rvec.norm(), rvec.normalized()));
-            params << t[0], t[1], t[2], q.x(), q.y(), q.z(), q.w();
+            params << q.x(), q.y(), q.z(), q.w(), t[0], t[1], t[2];
         }
         return success;
     }
