@@ -3,23 +3,24 @@
 #include "camera/brown_camera.hpp"
 #include "geometry/transform.hpp"
 #include <ceres/ceres.h>
+#include <sophus/se3.hpp>
 
 namespace bxg {
 using CameraType = BrownCamera<double>;
 using TransformType = QuaternionTransform<double>;
 
+template <typename Derived, std::enable_if_t<Derived::ColsAtCompileTime == 1 && Derived::RowsAtCompileTime == 3, bool> = true>
+inline static auto deltaQ(const Eigen::MatrixBase<Derived>& rvec)
+{
+    using Scalar = typename Derived::Scalar;
+    Eigen::Matrix<Scalar, 4, 1> v;
+    v.template head<3>() = rvec / Scalar(2);
+    v[3] = Scalar(1);
+    return Eigen::Quaternion<Scalar>(v);
+}
+
 class PoseLocalParameterization : public ceres::LocalParameterization {
 public:
-    template <typename Derived, std::enable_if_t<Derived::ColsAtCompileTime == 1 && Derived::RowsAtCompileTime == 3, bool> = true>
-    inline static auto deltaQ(const Eigen::MatrixBase<Derived>& rvec)
-    {
-        using Scalar = typename Derived::Scalar;
-        Eigen::Matrix<Scalar, 4, 1> v;
-        v.template head<3>() = rvec / Scalar(2);
-        v[3] = Scalar(1);
-        return Eigen::Quaternion<Scalar>(v);
-    }
-
     virtual bool Plus(const double* x, const double* delta, double* x_plus_delta) const override
     {
         using VecN = TransformType::VecN;
@@ -35,7 +36,6 @@ public:
         params_p_delta.head<4>() = (q * dq).normalized().coeffs();
 
         params_p_delta.tail<3>() = del.tail<3>() + params.tail<3>();
-
         return true;
     }
     virtual bool ComputeJacobian(const double* /*x*/, double* jacobian) const override
@@ -48,6 +48,30 @@ public:
     }
     virtual int GlobalSize() const override { return 7; }
     virtual int LocalSize() const override { return 6; }
+};
+
+class Se3LocalParameterization : public ceres::LocalParameterization {
+public:
+    using Group = Sophus::SE3d;
+    using Tangent = Group::Tangent;
+
+    virtual bool Plus(const double* x, const double* delta, double* x_plus_delta) const override
+    {
+        Eigen::Map<const Group> T(x);
+        Eigen::Map<const Tangent> dx(delta);
+        Eigen::Map<Group> Tdx(x_plus_delta);
+        Tdx = T * Group::exp(dx);
+        return true;
+    }
+    virtual bool ComputeJacobian(const double* x, double* jacobian) const override
+    {
+        Eigen::Map<const Group> T(x);
+        Eigen::Map<Eigen::Matrix<double, Group::num_parameters, Group::DoF, Eigen::RowMajor>> jac(jacobian);
+        jac = T.Dx_this_mul_exp_x_at_0();
+        return true;
+    }
+    virtual int GlobalSize() const override { return Group::num_parameters; }
+    virtual int LocalSize() const override { return Group::DoF; }
 };
 
 struct ProjectCostFunctor {
@@ -66,13 +90,11 @@ public:
         const T* const trans_params, T* residual) const
     {
         using CamT = BrownCamera<T>;
-        using TransT = QuaternionTransform<T>;
         auto camera = CamT(Eigen::Map<const typename CamT::VecN>(cam_params));
-        auto trans = TransT(Eigen::Map<const typename TransT::VecN>(trans_params));
+        Eigen::Map<const Sophus::SE3<T>> Tcw(trans_params);
 
-        auto pt3d_cam = trans.transform({ T(pt3d_[0]), T(pt3d_[1]), T(pt3d_[2]) });
         Eigen::Matrix<T, 2, 1> pt2d_proj;
-        bool ret = camera.project(pt3d_cam, pt2d_proj);
+        bool ret = camera.project(Tcw * pt3d_.cast<T>(), pt2d_proj);
         residual[0] = pt2d_proj[0] - T(pt2d_[0]);
         residual[1] = pt2d_proj[1] - T(pt2d_[1]);
         return ret;
