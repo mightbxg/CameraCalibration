@@ -64,12 +64,13 @@ private:
 namespace bxg {
 
 CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
-    const vector<vector<Vec2>>& vpts2d, CameraParams& params, vector<Scalar>* covariance)
+    const vector<vector<Vec2>>& vpts2d, CameraParams& params, vector<Scalar>* covariance,
+    vector<TransformParams>* transforms)
 {
     using namespace ceres;
     ASSERT(vpts3d.size() == vpts2d.size());
     ASSERT(params.size() == CameraType::N);
-    vector<TransformParams> transforms(vpts3d.size());
+    vector<TransformParams> _transforms(vpts3d.size());
 
     PnPSolver pnp_solver(params);
     Problem::Options problem_options;
@@ -82,7 +83,7 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
     LocalParameterization* local_parameterization = new Se3LocalParameterization();
 #endif
     for (size_t frame_idx = 0; frame_idx < vpts3d.size(); ++frame_idx) {
-        auto& trans_params = transforms[frame_idx];
+        auto& trans_params = _transforms[frame_idx];
         double* ptr_trans_params = trans_params.data();
         const auto& pts3d = vpts3d[frame_idx];
         const auto& pts2d = vpts2d[frame_idx];
@@ -151,8 +152,12 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
     }
     errs[2] /= residuals.size() / Scalar(2);
 
+    if (transforms) {
+        *transforms = _transforms;
+    }
+
     cam_ = params;
-    transforms_ = transforms;
+    transforms_ = _transforms;
     vpts3d_ = vpts3d;
     vpts2d_ = vpts2d;
 

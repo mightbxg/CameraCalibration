@@ -26,7 +26,7 @@ public:
 
     Vec3 optimize(const std::vector<std::vector<Vec3>>& vpts3d,
         const std::vector<std::vector<Vec2>>& vpts2d, CameraParams& params,
-        std::vector<Scalar>* covariance = nullptr);
+        std::vector<Scalar>* covariance = nullptr, std::vector<TransformParams>* transforms = nullptr);
 
 public:
     SolveOption options;
