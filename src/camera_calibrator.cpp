@@ -4,6 +4,8 @@
 
 using namespace std;
 
+#define USE_ANALYTICAL_DIFF 0
+
 #define ASSERT(condition)                                                                            \
     {                                                                                                \
         if (!(condition))                                                                            \
@@ -47,7 +49,7 @@ public:
         if (success) {
             Eigen::Vector3d rvec(r[0], r[1], r[2]);
             Eigen::Quaterniond q(Eigen::AngleAxisd(rvec.norm(), rvec.normalized()));
-            params << t[0], t[1], t[2], q.x(), q.y(), q.z(), q.w();
+            params << q.x(), q.y(), q.z(), q.w(), t[0], t[1], t[2];
         }
         return success;
     }
@@ -74,10 +76,14 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
     problem_options.local_parameterization_ownership = DO_NOT_TAKE_OWNERSHIP;
     Problem problem(problem_options);
     double* ptr_cam_params = &params[0];
+#if USE_ANALYTICAL_DIFF
     LocalParameterization* local_parameterization = new PoseLocalParameterization();
+#else
+    LocalParameterization* local_parameterization = new Se3LocalParameterization();
+#endif
     for (size_t frame_idx = 0; frame_idx < vpts3d.size(); ++frame_idx) {
         auto& trans_params = transforms[frame_idx];
-        double* ptr_trans_params = &trans_params[0];
+        double* ptr_trans_params = trans_params.data();
         const auto& pts3d = vpts3d[frame_idx];
         const auto& pts2d = vpts2d[frame_idx];
         ASSERT(pts3d.size() == pts2d.size());
@@ -85,7 +91,13 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
         if (!pnp_solver.solve(pts3d, pts2d, trans_params))
             continue;
         for (size_t pt_idx = 0; pt_idx < pts3d.size(); ++pt_idx) {
+#if USE_ANALYTICAL_DIFF
             CostFunction* cost_func = new bxg::ProjectCostFunction(pts3d[pt_idx], pts2d[pt_idx]);
+#else
+            CostFunction* cost_func = new AutoDiffCostFunction<bxg::ProjectCostFunctor,
+                2, CameraType::N, Sophus::SE3d::num_parameters>(
+                new bxg::ProjectCostFunctor(pts3d[pt_idx], pts2d[pt_idx]));
+#endif
             problem.AddResidualBlock(cost_func, nullptr, { ptr_cam_params, ptr_trans_params });
             problem.SetParameterization(ptr_trans_params, local_parameterization);
         }
