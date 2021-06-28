@@ -3,6 +3,7 @@
 #include "camera/brown_camera.hpp"
 #include "geometry/transform.hpp"
 #include <ceres/ceres.h>
+#include <opencv2/opencv.hpp>
 #include <sophus/se3.hpp>
 
 namespace bxg {
@@ -153,6 +154,39 @@ public:
 private:
     const Vec3 pt3d_;
     const Vec2 pt2d_;
+};
+
+/********************** Reverse Projection **********************/
+
+struct UnProjectCostFunctor {
+public:
+    template <typename T>
+    using Vec2 = Eigen::Matrix<T, 2, 1>;
+    template <typename T>
+    using Vec3 = Eigen::Matrix<T, 3, 1>;
+
+    /// unproject image point to the board
+    template <typename T>
+    static bool unproject(const T* const cam_params,
+        const T* const trans_params, const Vec2<T>& pt_image, Vec3<T>& pt_board)
+    {
+        using CamT = BrownCamera<T>;
+        auto camera = CamT(Eigen::Map<const typename CamT::VecN>(cam_params));
+        Eigen::Map<const Sophus::SE3<T>> Tcw(trans_params);
+
+        Vec3<T> pt3d_cam;
+        if (camera.unproject(pt_image, pt3d_cam)) {
+            Sophus::SE3<T> Twc = Tcw.inverse();
+            Vec3<T> r2 = Twc.rotationMatrix().row(2);
+            T z_cam = -Twc.translation().z() / (r2.transpose() * pt3d_cam);
+            pt_board = Twc * (z_cam * pt3d_cam);
+            return true;
+        }
+        return false;
+    }
+
+private:
+    //const cv::Mat& image;
 };
 
 } //namespace bxg

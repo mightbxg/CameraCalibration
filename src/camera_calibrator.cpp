@@ -1,6 +1,9 @@
 #include "estimator/camera_calibrator.h"
 #include "estimator/project_cost.hpp"
+#include "geometry/chessboard.hpp"
 #include <opencv2/opencv.hpp>
+
+#include <TestFuncs/TicToc.hpp>
 
 using namespace std;
 
@@ -154,6 +157,29 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
 
     if (transforms) {
         *transforms = _transforms;
+    }
+
+    if (1) { //test
+        auto genBoardImage = [&](int idx) {
+            dbg::TicToc::ScopedTimer st("genBoardImage");
+            auto trans = _transforms[idx];
+            auto board = ChessBoard();
+            board.options.x_shift = board.options.y_shift = -35.0 / 2.0;
+            auto getPixVal = [&trans, &params, &board](double x, double y) -> uchar {
+                Vec3 pt_obj;
+                UnProjectCostFunctor::unproject(params.data(), trans.data(), Vec2(x, y), pt_obj);
+                return board.pixVal(pt_obj.x(), pt_obj.y());
+            };
+
+            cv::Mat image = cv::Mat::zeros(120, 160, CV_8UC1);
+            for (int y = 0; y < image.rows; ++y)
+                for (int x = 0; x < image.cols; ++x)
+                    image.at<uchar>(y, x) = getPixVal(x + 0.5, y + 0.5);
+
+            return image;
+        };
+        for (int i = 0; i < 4; ++i)
+            imwrite(format("board_%d.png", i), genBoardImage(i));
     }
 
     cam_ = params;
