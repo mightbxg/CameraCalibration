@@ -1,11 +1,15 @@
 #pragma once
 
+#include <Eigen/Core>
 #include <opencv2/opencv.hpp>
+#include <vector>
 
 namespace bxg {
 
 class ChessBoard {
 public:
+    using Vec2 = Eigen::Vector2d;
+
     ChessBoard(int _rows = 7, int _cols = 10, double _step = 35.0)
         : rows(_rows)
         , cols(_cols)
@@ -40,6 +44,32 @@ public:
         }
     }
 
+    std::vector<Vec2> corners() const
+    {
+        std::vector<Vec2> ret;
+        ret.reserve(rows * cols);
+        for (int r = 0; r < rows; ++r)
+            for (int c = 0; c < cols; ++c)
+                ret.emplace_back(c * step - options.x_shift, r * step - options.y_shift);
+        return ret;
+    }
+
+    std::vector<Vec2> squareCenters(std::vector<bool>* colors = nullptr) const
+    {
+        std::vector<Vec2> ret;
+        ret.resize((rows + 1) * (cols + 1));
+        if (colors)
+            colors->resize(ret.size());
+        for (int r = 0; r <= rows; ++r)
+            for (int c = 0; c <= cols; ++c) {
+                int idx = r * (cols + 1) + c;
+                ret[idx] = Vec2((c - 0.5) * step - options.x_shift, (r - 0.5) * step - options.y_shift);
+                if (colors)
+                    colors->at(idx) = ((r + c) & 1) ^ options.start_with_white;
+            }
+        return ret;
+    }
+
 public:
     struct PixelOptions {
         double x_shift { 0.0 }, y_shift { 0.0 };
@@ -49,7 +79,7 @@ public:
     };
 
 public:
-    const int rows, cols;
+    const int rows, cols; //!< num of corners
     const double step;
 
     PixelOptions options;

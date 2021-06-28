@@ -159,22 +159,43 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
         *transforms = _transforms;
     }
 
-    if (1) { //test
+    if (0) { //test
+        Eigen::Matrix3d weights;
+        weights << 0.0625, 0.125, 0.0625,
+            0.125, 0.25, 0.125,
+            0.0625, 0.125, 0.0625;
+        const double space = 1.0 / 3.0;
         auto genBoardImage = [&](int idx) {
             dbg::TicToc::ScopedTimer st("genBoardImage");
             auto trans = _transforms[idx];
             auto board = ChessBoard();
             board.options.x_shift = board.options.y_shift = -35.0 / 2.0;
+
+            vector<bool> colors;
+            auto corners = board.squareCenters(&colors);
+
             auto getPixVal = [&trans, &params, &board](double x, double y) -> uchar {
                 Vec3 pt_obj;
-                UnProjectCostFunctor::unproject(params.data(), trans.data(), Vec2(x, y), pt_obj);
-                return board.pixVal(pt_obj.x(), pt_obj.y());
+                if (CameraTransform::unproject(params.data(), trans.data(), Vec2(x, y), pt_obj))
+                    return board.pixVal(pt_obj.x(), pt_obj.y());
+                else
+                    return 0;
             };
 
             cv::Mat image = cv::Mat::zeros(120, 160, CV_8UC1);
-            for (int y = 0; y < image.rows; ++y)
-                for (int x = 0; x < image.cols; ++x)
-                    image.at<uchar>(y, x) = getPixVal(x + 0.5, y + 0.5);
+            for (int r = 0; r < image.rows; ++r)
+                for (int c = 0; c < image.cols; ++c) {
+                    if (0) // use only one pixel
+                        image.at<uchar>(r, c) = getPixVal(c + 0.5, r + 0.5);
+                    else { // use nearby 3x3 pixels
+                        double val = 0;
+                        for (int dx = -1; dx <= 1; ++dx)
+                            for (int dy = -1; dy <= 1; ++dy)
+                                val += getPixVal(c + 0.5 + dx * space, r + 0.5 + dy * space)
+                                    * weights(dy + 1, dx + 1);
+                        image.at<uchar>(r, c) = cvRound(val);
+                    }
+                }
 
             return image;
         };
