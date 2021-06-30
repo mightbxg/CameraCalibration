@@ -1,6 +1,8 @@
 #pragma once
 
+#include "geometry/chessboard.hpp"
 #include <Eigen/Core>
+#include <opencv2/opencv.hpp>
 #include <sophus/se3.hpp>
 #include <vector>
 
@@ -23,6 +25,9 @@ public:
         bool minimizer_progress_to_stdout { false };
         ReportType report_type { ReportType::NONE };
     };
+
+    static void balanceImage(const cv::Mat& src, cv::Mat& dst, const CameraParams& cam_param,
+        const std::vector<TransformParams>& transforms, const ChessBoard& board = ChessBoard());
 
     Vec3 optimize(const std::vector<std::vector<Vec3>>& vpts3d,
         const std::vector<std::vector<Vec2>>& vpts2d, CameraParams& params,

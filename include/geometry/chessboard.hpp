@@ -15,6 +15,7 @@ public:
         , cols(_cols)
         , step(_step)
     {
+        options.x_shift = options.y_shift = -step / 2.0;
     }
 
     uint8_t pixVal(double x, double y)

@@ -1,7 +1,6 @@
 #include "estimator/camera_calibrator.h"
 #include "estimator/project_cost.hpp"
-#include "geometry/chessboard.hpp"
-#include <opencv2/opencv.hpp>
+#include "utility/kdtree.hpp"
 
 #include <TestFuncs/TicToc.hpp>
 
@@ -62,9 +61,80 @@ private:
     Mat dis_cef;
 };
 
+void imshowNormal(const string& wn, const Mat& image)
+{
+    namedWindow(wn, WINDOW_NORMAL);
+    imshow(wn, image);
+}
+
 } //anonymous namespace
 
 namespace bxg {
+
+void CameraCalibrator::balanceImage(const Mat& src, Mat& dst, const CameraParams& cam_params,
+    const vector<TransformParams>& transforms, const ChessBoard& board)
+{
+    CV_Assert(src.type() == CV_8UC1);
+
+    auto pickSrcColor = [&src](const Vec2& pt, int radius = 2, int threshold = 10) -> float {
+        const int row_stride = src.step1();
+        const uchar* c = &src.at<uchar>(pt.y(), pt.x());
+        const uchar* ptr = c - row_stride * radius - radius;
+        uchar c_val = *c;
+        int sum = 0, cnt = 0;
+        for (int y = -radius; y < radius; ++y, ptr += row_stride) {
+            for (int x = -radius; x < radius; ++x, ++ptr) {
+                if (abs(*ptr - c_val) < threshold) {
+                    sum += *ptr;
+                    ++cnt;
+                }
+            }
+        }
+        return cnt > 0 ? float(sum) / float(cnt) : float(c_val);
+    };
+
+    // square centers
+    vector<bool> center_colors;
+    auto centers = board.squareCenters(&center_colors);
+    vector<Vec2> cts[2];
+    vector<float> colors[2];
+    for (const auto& trans : transforms) {
+        for (size_t i = 0; i < centers.size(); ++i) {
+            Vec2 pt_image;
+            const Vec2& pt = centers[i];
+            if (CameraTransform::project(cam_params.data(), trans.data(), Vec3(pt.x(), pt.y(), 0), pt_image)
+                && pt_image.x() >= 0 && pt_image.x() < src.cols && pt_image.y() >= 0 && pt_image.y() < src.rows) {
+                int color = center_colors[i];
+                cts[color].push_back(pt_image);
+                colors[color].push_back(pickSrcColor(pt_image));
+            }
+        }
+    }
+    // there must be at least 2 centers in the image
+    CV_Assert(cts[0].size() > 1 && cts[1].size() > 1);
+    using Kdt = KDTree<Vec2, 2>;
+    Kdt kdt_color[2];
+    kdt_color[0].build(cts[0]);
+    kdt_color[1].build(cts[1]);
+
+    // balence source image
+    auto interpolateColor = [&](int x, int y, bool isWhite) -> float {
+        const auto& kdt = kdt_color[isWhite];
+        const auto& cls = colors[isWhite];
+        vector<double> dists;
+        auto ids = kdt.knnSearch(Vec2(x, y), 2, &dists);
+        return (cls[ids[0]] * dists[1] + cls[ids[1]] * dists[0]) / (dists[0] + dists[1]);
+    };
+    dst = src.clone();
+    dst.forEach<uchar>([&](uchar& pixel, const int pos[]) {
+        constexpr uchar min_val = 50, max_val = 200;
+        float min_val_real = interpolateColor(pos[1], pos[0], false);
+        float max_val_real = interpolateColor(pos[1], pos[0], true);
+        float alpha = (max_val - min_val) / (max_val_real - min_val_real);
+        float beta = min_val - min_val_real * alpha;
+        pixel = saturate_cast<uchar>(pixel * alpha + beta);
+    });
+}
 
 CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
     const vector<vector<Vec2>>& vpts2d, CameraParams& params, vector<Scalar>* covariance,
@@ -159,7 +229,7 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
         *transforms = _transforms;
     }
 
-    if (0) { //test
+    if (1) { //test
         Eigen::Matrix3d weights;
         weights << 0.0625, 0.125, 0.0625,
             0.125, 0.25, 0.125,
@@ -169,10 +239,6 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
             dbg::TicToc::ScopedTimer st("genBoardImage");
             auto trans = _transforms[idx];
             auto board = ChessBoard();
-            board.options.x_shift = board.options.y_shift = -35.0 / 2.0;
-
-            vector<bool> colors;
-            auto corners = board.squareCenters(&colors);
 
             auto getPixVal = [&trans, &params, &board](double x, double y) -> uchar {
                 Vec3 pt_obj;

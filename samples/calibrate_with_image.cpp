@@ -69,13 +69,18 @@ int main(int argc, char* argv[])
     // calibrate
     vector<double> params = { 100, 100, 80, 60, 0, 0, 0, 0, 0 };
     vector<double> covariance;
+    vector<bxg::CameraCalibrator::TransformParams> transforms;
     bxg::CameraCalibrator solver;
     solver.options.minimizer_progress_to_stdout = true;
     solver.options.report_type = bxg::ReportType::FULL;
-    auto errs = solver.optimize(vpts3d, vpts2d, params, &covariance);
+    auto errs = solver.optimize(vpts3d, vpts2d, params, &covariance, &transforms);
     cout << "result: " << params << '\n';
     cout << "covari: " << covariance << '\n';
     printf("errors: min[%f] max[%f] avg[%f]\n", errs[0], errs[1], errs[2]);
+
+    // normalize source image
+    Mat image_balanced;
+    solver.balanceImage(image_src, image_balanced, params, transforms);
 
     return 0;
 }
