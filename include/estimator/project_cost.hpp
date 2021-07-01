@@ -201,21 +201,21 @@ public:
     using Vec2 = Eigen::Matrix<double, 2, 1>;
     using Vec3 = Eigen::Matrix<double, 3, 1>;
 
-    UnProjectCostFunctor(const cv::Mat& image, const ChessBoard& board, const Vec2& pt_image)
-        : image_(image)
-        , board_(board)
+    UnProjectCostFunctor(const ChessBoard& board, const Vec2& pt_image, double pixel_val)
+        : board_(board)
         , pt_image_(pt_image)
+        , pixel_val_(pixel_val)
     {
     }
 
     template <unsigned R = 0>
     static double getPixVal(const double* const cam_params,
         const double* const trans_params,
-        const ChessBoard& board, double x, double y)
+        const ChessBoard& board, const Vec2& pt)
     {
         if constexpr (R == 0) {
             Vec3 pt_obj;
-            if (CameraTransform::unproject(cam_params, trans_params, Vec2(x, y), pt_obj))
+            if (CameraTransform::unproject(cam_params, trans_params, pt, pt_obj))
                 return board.pixVal(pt_obj.x(), pt_obj.y());
             return -1.0;
         } else {
@@ -225,7 +225,7 @@ public:
             for (int dy = -R; dy <= int(R); ++dy)
                 for (int dx = -R; dx <= int(R); ++dx) {
                     auto pv = getPixVal<0>(cam_params, trans_params, board,
-                        x + dx * space, y + dy * space);
+                        pt + Vec2(dx * space, dy * space));
                     if (pv < 0.0) // unproject failed
                         return -1.0;
                     val += pv * Kernel::K[(dy + R) * Kernel::D + dx + R];
@@ -237,9 +237,7 @@ public:
     bool operator()(const double* const cam_params,
         const double* const trans_params, double* residual) const
     {
-        Vec3 pt_board;
-        if (!CameraTransform::unproject(cam_params, trans_params, pt_image_, pt_board))
-            return false;
+        residual[0] = getPixVal<1>(cam_params, trans_params, board_, pt_image_) - pixel_val_;
         return true;
     }
 
@@ -275,9 +273,9 @@ private:
     };
 
 private:
-    const cv::Mat& image_;
     const ChessBoard& board_;
     const Vec2 pt_image_;
+    double pixel_val_;
 };
 
 } //namespace bxg

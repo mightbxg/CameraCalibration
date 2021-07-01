@@ -238,7 +238,7 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
             cv::Mat image = cv::Mat::zeros(120, 160, CV_8UC1);
             for (int r = 0; r < image.rows; ++r)
                 for (int c = 0; c < image.cols; ++c) {
-                    image.at<uchar>(r, c) = cvRound(UnProjectCostFunctor::getPixVal<1>(params.data(), trans.data(), board, c, r));
+                    image.at<uchar>(r, c) = cvRound(UnProjectCostFunctor::getPixVal<1>(params.data(), trans.data(), board, Vec2(c, r)));
                 }
 
             return image;
