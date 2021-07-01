@@ -3,6 +3,7 @@
 #include "camera/brown_camera.hpp"
 #include "geometry/transform.hpp"
 #include <ceres/ceres.h>
+#include <geometry/chessboard.hpp>
 #include <opencv2/opencv.hpp>
 #include <sophus/se3.hpp>
 
@@ -197,13 +198,86 @@ private:
 
 struct UnProjectCostFunctor {
 public:
-    template <typename T>
-    using Vec2 = Eigen::Matrix<T, 2, 1>;
-    template <typename T>
-    using Vec3 = Eigen::Matrix<T, 3, 1>;
+    using Vec2 = Eigen::Matrix<double, 2, 1>;
+    using Vec3 = Eigen::Matrix<double, 3, 1>;
+
+    UnProjectCostFunctor(const cv::Mat& image, const ChessBoard& board, const Vec2& pt_image)
+        : image_(image)
+        , board_(board)
+        , pt_image_(pt_image)
+    {
+    }
+
+    template <unsigned R = 0>
+    static double getPixVal(const double* const cam_params,
+        const double* const trans_params,
+        const ChessBoard& board, double x, double y)
+    {
+        if constexpr (R == 0) {
+            Vec3 pt_obj;
+            if (CameraTransform::unproject(cam_params, trans_params, Vec2(x, y), pt_obj))
+                return board.pixVal(pt_obj.x(), pt_obj.y());
+            return -1.0;
+        } else {
+            using Kernel = GaussianKernel<R>;
+            constexpr double space = 1.0 / Kernel::D;
+            double val = 0.0;
+            for (int dy = -R; dy <= int(R); ++dy)
+                for (int dx = -R; dx <= int(R); ++dx) {
+                    auto pv = getPixVal<0>(cam_params, trans_params, board,
+                        x + dx * space, y + dy * space);
+                    if (pv < 0.0) // unproject failed
+                        return -1.0;
+                    val += pv * Kernel::K[(dy + R) * Kernel::D + dx + R];
+                }
+            return val;
+        }
+    }
+
+    bool operator()(const double* const cam_params,
+        const double* const trans_params, double* residual) const
+    {
+        Vec3 pt_board;
+        if (!CameraTransform::unproject(cam_params, trans_params, pt_image_, pt_board))
+            return false;
+        return true;
+    }
 
 private:
-    //const cv::Mat& image;
+    template <unsigned _R>
+    class GaussianKernel {
+    public:
+        static constexpr unsigned R = _R; //!< radius
+        static constexpr unsigned D = R * 2 + 1; //!< diameter
+
+        /// one-dimension kernel
+        static constexpr auto k = []() -> std::array<double, D> {
+            if constexpr (R == 0)
+                return { 1.0 };
+            else if constexpr (R == 1)
+                return { 0.25, 0.5, 0.25 };
+            else if constexpr (R == 2)
+                return { 0.0625, 0.25, 0.375, 0.25, 0.0625 };
+            else {
+                static_assert(R < 3, "un-supported large window");
+                return {};
+            }
+        }();
+
+        /// kernel matrix
+        static constexpr auto K = []() -> std::array<double, D * D> {
+            std::array<double, D * D> ret {};
+            for (size_t i = 0; i < D; ++i)
+                for (size_t j = 0; j < D; ++j)
+                    ret[i * D + j] = k[i] * k[j];
+            return ret;
+        }();
+    };
+
+private:
+    const cv::Mat& image_;
+    const ChessBoard& board_;
+    const Vec2 pt_image_;
 };
 
 } //namespace bxg

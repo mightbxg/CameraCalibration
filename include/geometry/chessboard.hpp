@@ -18,7 +18,7 @@ public:
         options.x_shift = options.y_shift = -step / 2.0;
     }
 
-    uint8_t pixVal(double x, double y)
+    uint8_t pixVal(double x, double y) const
     {
         x = x * options.scale + options.x_shift;
         y = y * options.scale + options.y_shift;
@@ -32,7 +32,7 @@ public:
             return (((row + col) & 1) ^ options.start_with_white) ? 200 : 50;
     }
 
-    void draw(cv::Mat& image)
+    void draw(cv::Mat& image) const
     {
         if (image.empty())
             image = cv::Mat((rows + 1) * step, (cols + 1) * step, CV_8UC1);

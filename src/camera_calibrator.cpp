@@ -230,37 +230,15 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
     }
 
     if (1) { //test
-        Eigen::Matrix3d weights;
-        weights << 0.0625, 0.125, 0.0625,
-            0.125, 0.25, 0.125,
-            0.0625, 0.125, 0.0625;
-        const double space = 1.0 / 3.0;
         auto genBoardImage = [&](int idx) {
             dbg::TicToc::ScopedTimer st("genBoardImage");
             auto trans = _transforms[idx];
             auto board = ChessBoard();
 
-            auto getPixVal = [&trans, &params, &board](double x, double y) -> uchar {
-                Vec3 pt_obj;
-                if (CameraTransform::unproject(params.data(), trans.data(), Vec2(x, y), pt_obj))
-                    return board.pixVal(pt_obj.x(), pt_obj.y());
-                else
-                    return 0;
-            };
-
             cv::Mat image = cv::Mat::zeros(120, 160, CV_8UC1);
             for (int r = 0; r < image.rows; ++r)
                 for (int c = 0; c < image.cols; ++c) {
-                    if (0) // use only one pixel
-                        image.at<uchar>(r, c) = getPixVal(c + 0.5, r + 0.5);
-                    else { // use nearby 3x3 pixels
-                        double val = 0;
-                        for (int dx = -1; dx <= 1; ++dx)
-                            for (int dy = -1; dy <= 1; ++dy)
-                                val += getPixVal(c + 0.5 + dx * space, r + 0.5 + dy * space)
-                                    * weights(dy + 1, dx + 1);
-                        image.at<uchar>(r, c) = cvRound(val);
-                    }
+                    image.at<uchar>(r, c) = cvRound(UnProjectCostFunctor::getPixVal<1>(params.data(), trans.data(), board, c, r));
                 }
 
             return image;
