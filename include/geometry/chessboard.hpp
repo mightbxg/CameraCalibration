@@ -29,7 +29,7 @@ public:
             || row < 0 || row > rows)
             return options.back_ground;
         else
-            return (((row + col) & 1) ^ options.start_with_white) * 255;
+            return (((row + col) & 1) ^ options.start_with_white) ? 200 : 50;
     }
 
     void draw(cv::Mat& image)
