@@ -78,9 +78,12 @@ int main(int argc, char* argv[])
     cout << "covari: " << covariance << '\n';
     printf("errors: min[%f] max[%f] avg[%f]\n", errs[0], errs[1], errs[2]);
 
-    // normalize source image
-    Mat image_balanced;
-    solver.balanceImage(image_src, image_balanced, params, transforms);
+    cout << "calib with direct method-------------------------\n";
+    solver.options.minimizer_progress_to_stdout = false;
+    solver.options.report_type = bxg::ReportType::NONE;
+    solver.optimize(image_src, params, &covariance);
+    cout << "result: " << params << '\n';
+    cout << "covari: " << covariance << '\n';
 
     return 0;
 }

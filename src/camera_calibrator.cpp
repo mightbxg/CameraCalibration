@@ -61,7 +61,7 @@ private:
     Mat dis_cef;
 };
 
-void imshowNormal(const string& wn, const Mat& image)
+[[maybe_unused]] void imshowNormal(const string& wn, const Mat& image)
 {
     namedWindow(wn, WINDOW_NORMAL);
     imshow(wn, image);
@@ -229,24 +229,6 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
         *transforms = _transforms;
     }
 
-    if (1) { //test
-        auto genBoardImage = [&](int idx) {
-            dbg::TicToc::ScopedTimer st("genBoardImage");
-            auto trans = _transforms[idx];
-            auto board = ChessBoard();
-
-            cv::Mat image = cv::Mat::zeros(120, 160, CV_8UC1);
-            for (int r = 0; r < image.rows; ++r)
-                for (int c = 0; c < image.cols; ++c) {
-                    image.at<uchar>(r, c) = cvRound(UnProjectCostFunctor::getPixVal<1>(params.data(), trans.data(), board, Vec2(c, r)));
-                }
-
-            return image;
-        };
-        for (int i = 0; i < 4; ++i)
-            imwrite(format("board_%d.png", i), genBoardImage(i));
-    }
-
     cam_ = params;
     transforms_ = _transforms;
     vpts3d_ = vpts3d;
@@ -254,6 +236,102 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
 
     delete local_parameterization;
     return errs;
+}
+
+void CameraCalibrator::optimize(const cv::Mat& image, CameraParams& params, std::vector<Scalar>* covariance)
+{
+    using namespace ceres;
+    ASSERT(transforms_.size() == 4);
+    ASSERT(image.type() == CV_8UC1);
+    Mat image_balanced;
+    balanceImage(image, image_balanced, cam_, transforms_);
+
+    //Mat gradient;
+    //{
+    //    Mat dx, dy;
+    //    Sobel(image_balanced, dx, CV_32FC1, 1, 1);
+    //    Sobel(image_balanced, dy, CV_32FC1, 0, 1);
+    //    magnitude(dx, dy, gradient);
+    //}
+    //Mat valid_map = gradient > 300;
+    //dilate(valid_map, valid_map, Mat());
+
+    auto drawConvexHull = [&image](const vector<Vec2>& pts) -> cv::Mat {
+        vector<Point> pts_org, pts_hull;
+        pts_org.reserve(pts.size());
+        for (const auto& pt : pts)
+            pts_org.emplace_back(cvRound(pt.x()), cvRound(pt.y()));
+        cv::convexHull(pts_org, pts_hull);
+
+        Mat dst = Mat::zeros(image.size(), CV_8UC1);
+        cv::fillPoly(dst, pts_hull, cv::Scalar::all(255));
+        cv::dilate(dst, dst, Mat());
+        return dst;
+    };
+
+    ceres::Problem::Options problem_options;
+    problem_options.local_parameterization_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
+    ceres::Problem problem(problem_options);
+    vector<TransformParams> transforms = transforms_;
+    CameraParams cam_params = cam_;
+    LocalParameterization* local_parameterization = new Se3LocalParameterization;
+    ChessBoard board;
+    for (size_t i = 0; i < transforms.size(); ++i) {
+        auto& tran = transforms[i];
+        const auto& pts = vpts2d_[i];
+        Mat mask = drawConvexHull(pts);
+
+        for (int y = 0; y < image.rows; ++y) {
+            auto ptr_src = image.ptr<uchar>(y);
+            auto ptr_mask = mask.ptr<uchar>(y);
+            for (int x = 0; x < image.cols; ++x) {
+                if (!ptr_mask[x])
+                    continue;
+                CostFunction* cost_function = new NumericDiffCostFunction<UnProjectCostFunctor, ceres::CENTRAL,
+                    1, CameraType::N, Sophus::SE3d::num_parameters>(
+                    new UnProjectCostFunctor(board, Vec2(x, y), ptr_src[x]));
+                problem.AddResidualBlock(cost_function, nullptr, { cam_params.data(), tran.data() });
+                problem.SetParameterization(tran.data(), local_parameterization);
+            }
+        }
+    }
+
+    Solver::Options solver_options;
+    solver_options.minimizer_progress_to_stdout = options.minimizer_progress_to_stdout;
+    Solver::Summary summary;
+    ceres::Solve(solver_options, &problem, &summary);
+    switch (options.report_type) {
+    case ReportType::BRIEF:
+        cout << summary.BriefReport() << endl;
+        break;
+    case ReportType::FULL:
+        cout << summary.FullReport() << endl;
+        break;
+    default:
+        break;
+    }
+
+    if (covariance) {
+        Covariance::Options cov_options;
+        Covariance cov(cov_options);
+
+        vector<pair<const double*, const double*>> cov_blocks;
+        cov_blocks.push_back(make_pair(cam_params.data(), cam_params.data()));
+
+        if (cov.Compute(cov_blocks, &problem)) {
+            Eigen::Matrix<Scalar, CameraType::N, CameraType::N, Eigen::RowMajor> covs;
+            cov.GetCovarianceBlock(cam_params.data(), cam_params.data(), covs.data());
+            Eigen::Matrix<Scalar, CameraType::N, 1> diag = covs.diagonal();
+            covariance->resize(CameraType::N);
+            for (int i = 0; i < CameraType::N; ++i)
+                covariance->at(i) = diag[i];
+        }
+    }
+
+    params = cam_ = cam_params;
+    transforms_ = transforms;
+
+    delete local_parameterization;
 }
 
 } //namespace bxg

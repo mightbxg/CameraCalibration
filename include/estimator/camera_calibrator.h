@@ -29,9 +29,15 @@ public:
     static void balanceImage(const cv::Mat& src, cv::Mat& dst, const CameraParams& cam_param,
         const std::vector<TransformParams>& transforms, const ChessBoard& board = ChessBoard());
 
+    /// optimize with forward projection (reproject error)
     Vec3 optimize(const std::vector<std::vector<Vec3>>& vpts3d,
         const std::vector<std::vector<Vec2>>& vpts2d, CameraParams& params,
         std::vector<Scalar>* covariance = nullptr, std::vector<TransformParams>* transforms = nullptr);
+
+    /// optimize with backward projection (direct method)
+    /// @note Must do forward projection optimization in advance
+    void optimize(const cv::Mat& image, CameraParams& params,
+        std::vector<Scalar>* covariance = nullptr);
 
 public:
     SolveOption options;
