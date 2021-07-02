@@ -79,8 +79,8 @@ int main(int argc, char* argv[])
     printf("errors: min[%f] max[%f] avg[%f]\n", errs[0], errs[1], errs[2]);
 
     cout << "calib with direct method-------------------------\n";
-    solver.options.minimizer_progress_to_stdout = false;
-    solver.options.report_type = bxg::ReportType::NONE;
+    //solver.options.minimizer_progress_to_stdout = false;
+    //solver.options.report_type = bxg::ReportType::NONE;
     solver.optimize(image_src, params, &covariance);
     cout << "result: " << params << '\n';
     cout << "covari: " << covariance << '\n';

@@ -282,7 +282,7 @@ void CameraCalibrator::optimize(const cv::Mat& image, CameraParams& params, std:
         Mat mask = drawConvexHull(pts);
 
         for (int y = 0; y < image.rows; ++y) {
-            auto ptr_src = image.ptr<uchar>(y);
+            auto ptr_src = image_balanced.ptr<uchar>(y);
             auto ptr_mask = mask.ptr<uchar>(y);
             for (int x = 0; x < image.cols; ++x) {
                 if (!ptr_mask[x])
@@ -294,6 +294,7 @@ void CameraCalibrator::optimize(const cv::Mat& image, CameraParams& params, std:
                 problem.SetParameterization(tran.data(), local_parameterization);
             }
         }
+        //problem.SetParameterBlockConstant(tran.data());
     }
 
     Solver::Options solver_options;
