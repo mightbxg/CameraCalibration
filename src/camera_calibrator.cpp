@@ -238,7 +238,8 @@ CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vp
     return errs;
 }
 
-void CameraCalibrator::optimize(const cv::Mat& image, CameraParams& params, std::vector<Scalar>* covariance)
+void CameraCalibrator::optimize(const cv::Mat& image, CameraParams& params,
+    std::vector<Scalar>* covariance, std::vector<TransformParams>* transforms)
 {
     using namespace ceres;
     ASSERT(transforms_.size() == 4);
@@ -272,12 +273,12 @@ void CameraCalibrator::optimize(const cv::Mat& image, CameraParams& params, std:
     ceres::Problem::Options problem_options;
     problem_options.local_parameterization_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
     ceres::Problem problem(problem_options);
-    vector<TransformParams> transforms = transforms_;
+    vector<TransformParams> _transforms = transforms_;
     CameraParams cam_params = cam_;
     LocalParameterization* local_parameterization = new Se3LocalParameterization;
     ChessBoard board;
-    for (size_t i = 0; i < transforms.size(); ++i) {
-        auto& tran = transforms[i];
+    for (size_t i = 0; i < _transforms.size(); ++i) {
+        auto& tran = _transforms[i];
         const auto& pts = vpts2d_[i];
         Mat mask = drawConvexHull(pts);
 
@@ -330,7 +331,9 @@ void CameraCalibrator::optimize(const cv::Mat& image, CameraParams& params, std:
     }
 
     params = cam_ = cam_params;
-    transforms_ = transforms;
+    transforms_ = _transforms;
+    if (transforms)
+        *transforms = _transforms;
 
     delete local_parameterization;
 }

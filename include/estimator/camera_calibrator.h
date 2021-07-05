@@ -37,7 +37,7 @@ public:
     /// optimize with backward projection (direct method)
     /// @note Must do forward projection optimization in advance
     void optimize(const cv::Mat& image, CameraParams& params,
-        std::vector<Scalar>* covariance = nullptr);
+        std::vector<Scalar>* covariance = nullptr, std::vector<TransformParams>* transforms = nullptr);
 
 public:
     SolveOption options;
