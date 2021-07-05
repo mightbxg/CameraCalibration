@@ -216,7 +216,7 @@ public:
         if constexpr (R == 0) {
             Vec3 pt_obj;
             if (CameraTransform::unproject(cam_params, trans_params, pt, pt_obj))
-                return board.pixVal(pt_obj.x(), pt_obj.y());
+                return board.pixValInterpolated(pt_obj.x(), pt_obj.y());
             return -1.0;
         } else {
             using Kernel = GaussianKernel<R>;
@@ -237,7 +237,7 @@ public:
     bool operator()(const double* const cam_params,
         const double* const trans_params, double* residual) const
     {
-        residual[0] = getPixVal<1>(cam_params, trans_params, board_, pt_image_) - pixel_val_;
+        residual[0] = getPixVal<0>(cam_params, trans_params, board_, pt_image_) - pixel_val_;
         return true;
     }
 

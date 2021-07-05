@@ -18,6 +18,7 @@ public:
         , step(_step)
     {
         options.x_shift = options.y_shift = -step / 2.0;
+        initDiscreteImage();
     }
 
     /// \brief Initialize and return the discrete board image
