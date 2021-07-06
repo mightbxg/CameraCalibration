@@ -51,9 +51,9 @@ int main(int argc, char* argv[])
         cout << "detect target from image failed\n";
         return -2;
     }
-    Mat image_board;
-    target->draw(image_src, image_board, 5.0);
-    imwrite("boards.png", image_board);
+    Mat image_kps;
+    target->draw(image_src, image_kps, 5.0);
+    imwrite("kps.png", image_kps);
 
     // construct pts
     vector<vector<Eigen::Vector3d>> vpts3d;
@@ -77,11 +77,19 @@ int main(int argc, char* argv[])
     cout << "result: " << params << '\n';
     cout << "covari: " << covariance << '\n';
     printf("errors: min[%f] max[%f] avg[%f]\n", errs[0], errs[1], errs[2]);
+    Mat image_sim(image_src.size(), CV_8UC1);
+    solver.drawSimBoard(image_sim, params, transforms);
+    imwrite("sim.png", image_sim);
+    Mat image_balanced;
+    solver.balanceImage(image_src, image_balanced, params, transforms);
+    imwrite("balanced.png", image_balanced);
 
     cout << "\33[32mcalib with direct method-------------------------\33[0m\n";
     solver.optimize(image_src, params, &covariance, &transforms);
     cout << "result: " << params << '\n';
     cout << "covari: " << covariance << '\n';
+    solver.drawSimBoard(image_sim, params, transforms);
+    imwrite("sim_direct.png", image_sim);
 
     return 0;
 }

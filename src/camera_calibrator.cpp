@@ -136,6 +136,28 @@ void CameraCalibrator::balanceImage(const Mat& src, Mat& dst, const CameraParams
     });
 }
 
+void CameraCalibrator::drawSimBoard(cv::Mat& image, const vector<double>& cam_params,
+    const vector<TransformParams>& poses)
+{
+    CV_Assert(image.type() == CV_8UC1);
+    CV_Assert(cam_params.size() == 9);
+
+    ChessBoard board;
+    board.options.back_ground = 0;
+    image = 0;
+    for (const auto& pose : poses) {
+        Mat tmp(image.size(), CV_8UC1);
+        for (int y = 0; y < tmp.rows; ++y) {
+            auto ptr = tmp.ptr<uchar>(y);
+            for (int x = 0; x < tmp.cols; ++x) {
+                ptr[x] = saturate_cast<uchar>(UnProjectCostFunctor::getPixVal<-1>(
+                    cam_params.data(), pose.data(), board, Vec2(x, y)));
+            }
+        }
+        image += tmp;
+    }
+}
+
 CameraCalibrator::Vec3 CameraCalibrator::optimize(const vector<vector<Vec3>>& vpts3d,
     const vector<vector<Vec2>>& vpts2d, CameraParams& params, vector<Scalar>* covariance,
     vector<TransformParams>* transforms)

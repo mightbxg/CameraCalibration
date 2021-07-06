@@ -29,6 +29,9 @@ public:
     static void balanceImage(const cv::Mat& src, cv::Mat& dst, const CameraParams& cam_param,
         const std::vector<TransformParams>& transforms, const ChessBoard& board = ChessBoard());
 
+    static void drawSimBoard(cv::Mat& image, const std::vector<double>& cam_params,
+        const std::vector<TransformParams>& poses);
+
     /// optimize with forward projection (reproject error)
     Vec3 optimize(const std::vector<std::vector<Vec3>>& vpts3d,
         const std::vector<std::vector<Vec2>>& vpts2d, CameraParams& params,
