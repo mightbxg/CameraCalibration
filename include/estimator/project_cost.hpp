@@ -208,22 +208,27 @@ public:
     {
     }
 
-    template <unsigned R = 0>
+    template <int R = -1>
     static double getPixVal(const double* const cam_params,
         const double* const trans_params,
         const ChessBoard& board, const Vec2& pt)
     {
-        if constexpr (R == 0) {
+        if constexpr (R < 0) {
             Vec3 pt_obj;
             if (CameraTransform::unproject(cam_params, trans_params, pt, pt_obj))
                 return board.pixValInterpolated(pt_obj.x(), pt_obj.y());
+            return -1.0;
+        } else if constexpr (R == 0) {
+            Vec3 pt_obj;
+            if (CameraTransform::unproject(cam_params, trans_params, pt, pt_obj))
+                return board.pixVal(pt_obj.x(), pt_obj.y());
             return -1.0;
         } else {
             using Kernel = GaussianKernel<R>;
             constexpr double space = 1.0 / Kernel::D;
             double val = 0.0;
-            for (int dy = -R; dy <= int(R); ++dy)
-                for (int dx = -R; dx <= int(R); ++dx) {
+            for (int dy = -R; dy <= R; ++dy)
+                for (int dx = -R; dx <= R; ++dx) {
                     auto pv = getPixVal<0>(cam_params, trans_params, board,
                         pt + Vec2(dx * space, dy * space));
                     if (pv < 0.0) // unproject failed
@@ -237,7 +242,7 @@ public:
     bool operator()(const double* const cam_params,
         const double* const trans_params, double* residual) const
     {
-        residual[0] = getPixVal<0>(cam_params, trans_params, board_, pt_image_) - pixel_val_;
+        residual[0] = getPixVal(cam_params, trans_params, board_, pt_image_) - pixel_val_;
         return true;
     }
 
