@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
     printf("errors: min[%f] max[%f] avg[%f]\n", errs[0], errs[1], errs[2]);
     Mat image_sim(image_src.size(), CV_8UC1);
     solver.drawSimBoard(image_sim, params, transforms);
-    imwrite("sim.png", image_sim);
+    imwrite("restored_kps.png", image_sim);
     Mat image_balanced;
     solver.balanceImage(image_src, image_balanced, params, transforms);
     imwrite("balanced.png", image_balanced);
@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
     cout << "result: " << params << '\n';
     cout << "covari: " << covariance << '\n';
     solver.drawSimBoard(image_sim, params, transforms);
-    imwrite("sim_direct.png", image_sim);
+    imwrite("restored_direct.png", image_sim);
 
     return 0;
 }
