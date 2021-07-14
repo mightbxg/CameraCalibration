@@ -14,6 +14,50 @@ ostream& operator<<(ostream& os, const vector<T>& vec)
         os << v << " ";
     return os;
 }
+
+bool writeIntrinsicParams(const string& filename, const vector<double>& params, const cv::Size& image_size)
+{
+    FileStorage fs;
+    if (!fs.open(filename, FileStorage::WRITE))
+        return false;
+    CV_Assert(params.size() == 9);
+
+    fs.writeComment("projection");
+    fs << "fx" << params[0];
+    fs << "fy" << params[1];
+    fs << "cx" << params[2];
+    fs << "cy" << params[3];
+
+    fs.writeComment("distortion");
+    fs << "k1" << params[4];
+    fs << "k2" << params[5];
+    fs << "k3" << params[6];
+    fs << "p1" << params[7];
+    fs << "p2" << params[8];
+
+    fs.writeComment("image size");
+    fs << "width" << image_size.width;
+    fs << "height" << image_size.height;
+
+    return true;
+}
+
+bool writeExtrinsicParams(const string& filename,
+    const vector<bxg::CameraCalibrator::TransformParams>& transforms)
+{
+    FileStorage fs;
+    if (!fs.open(filename, FileStorage::WRITE))
+        return false;
+    vector<vector<double>> poses;
+    for (const auto& tran : transforms) {
+        vector<double> pose;
+        for (int i = 0; i < tran.size(); ++i)
+            pose.emplace_back(tran[i]);
+        poses.emplace_back(pose);
+    }
+    fs << "poses" << poses;
+    return true;
+}
 }
 
 int main(int argc, char* argv[])
@@ -95,6 +139,10 @@ int main(int argc, char* argv[])
     cout << "covari: " << covariance << '\n';
     solver.drawSimBoard(image_sim, params, transforms);
     imwrite("restored_direct.png", image_sim);
+
+    // output result
+    writeIntrinsicParams("camera_intrinsic.yml", params, image_src.size());
+    writeExtrinsicParams("board_poses.yml", transforms);
 
     return 0;
 }
