@@ -45,6 +45,7 @@ int main(int argc, char* argv[])
         cout << "cannot load image from: " << fn_image << '\n';
         return -1;
     }
+    const bool is_low_res = image_src.cols == 160;
 
     vector<caliblink::CtrlPointd> cpts;
     if (!target->detect(image_src, cpts)) {
@@ -52,7 +53,7 @@ int main(int argc, char* argv[])
         return -2;
     }
     Mat image_kps;
-    target->draw(image_src, image_kps, 5.0);
+    target->draw(image_src, image_kps, is_low_res ? 5.0 : 1.0);
     imwrite("kps.png", image_kps);
 
     // construct pts
@@ -67,7 +68,11 @@ int main(int argc, char* argv[])
     }
 
     // calibrate
-    vector<double> params = { 100, 100, 80, 60, 0, 0, 0, 0, 0 };
+    vector<double> params = { 500, 500, 320, 240, 0, 0, 0, 0, 0 };
+    if (is_low_res) {
+        for (auto& p : params)
+            p /= 4.0;
+    }
     vector<double> covariance;
     vector<bxg::CameraCalibrator::TransformParams> transforms;
     bxg::CameraCalibrator solver;

@@ -269,15 +269,15 @@ void CameraCalibrator::optimize(const cv::Mat& image, CameraParams& params,
     Mat image_balanced;
     balanceImage(image, image_balanced, cam_, transforms_);
 
-    //Mat gradient;
-    //{
-    //    Mat dx, dy;
-    //    Sobel(image_balanced, dx, CV_32FC1, 1, 0);
-    //    Sobel(image_balanced, dy, CV_32FC1, 0, 1);
-    //    magnitude(dx, dy, gradient);
-    //}
-    //Mat invalid_map = gradient < 100;
-    //erode(invalid_map, invalid_map, Mat());
+    Mat gradient;
+    {
+        Mat dx, dy;
+        Sobel(image_balanced, dx, CV_32FC1, 1, 0);
+        Sobel(image_balanced, dy, CV_32FC1, 0, 1);
+        magnitude(dx, dy, gradient);
+    }
+    Mat invalid_map = gradient < 100;
+    erode(invalid_map, invalid_map, Mat());
 
     auto drawConvexHull = [&image](const vector<Vec2>& pts) -> cv::Mat {
         vector<Point> pts_org, pts_hull;
@@ -303,7 +303,7 @@ void CameraCalibrator::optimize(const cv::Mat& image, CameraParams& params,
         auto& tran = _transforms[i];
         const auto& pts = vpts2d_[i];
         Mat mask = drawConvexHull(pts);
-        //mask -= invalid_map;
+        mask -= invalid_map;
 
         for (int y = 0; y < image.rows; ++y) {
             auto ptr_src = image_balanced.ptr<uchar>(y);
