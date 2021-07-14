@@ -49,8 +49,9 @@ public:
 
     double pixValInterpolated(double x, double y) const
     {
-        x = (x + options.x_shift + step) * options.resolution_rate;
-        y = (y + options.y_shift + step) * options.resolution_rate;
+        // minus 0.5 pixel to shift the coordinate from pixel centers to pixel borders
+        x = (x + options.x_shift + step - 0.5) * options.resolution_rate;
+        y = (y + options.y_shift + step - 0.5) * options.resolution_rate;
         if (x < 0 || x > image_.cols - 1 || y < 0 || y > image_.rows - 1)
             return -1.0;
 
